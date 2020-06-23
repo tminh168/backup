@@ -2,6 +2,7 @@ import cv2
 import os
 import time
 import argparse
+import imutils
 from imutils.video import FPS
 from imutils.video import WebcamVideoStream
 from pyimagesearch.centroidtracker import CentroidTracker
@@ -13,7 +14,6 @@ from aux_functions import *
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
 mouse_pts = []
-
 
 def get_mouse_points(event, x, y, flags, param):
     # Used to mark 4 points on the frame zero of the video that will be warped
@@ -28,6 +28,72 @@ def get_mouse_points(event, x, y, flags, param):
         print("Point detected")
         print(mouse_pts)
 
+def append_objs_to_img(cv2_im, objs, labels, ROI, ct, trackableObjects, totalCount):
+    height, width, channels = cv2_im.shape
+    rects = []
+
+    for obj in objs:
+        x0, y0, x1, y1 = list(obj.bbox)
+        x0, y0, x1, y1 = int(x0*width), int(y0*height), int(x1*width), int(y1*height)
+        if x0 < 100 or x1 > 550:
+              continue
+        rects.append((x0, y0, x1, y1))
+        percent = int(100 * obj.score)
+        label = '{}-{}%'.format(labels.get(obj.id, obj.id), percent)
+
+        cv2_im = cv2.rectangle(cv2_im, (x0, y0), (x1, y1), (0, 255, 0), 2)
+        cv2_im = cv2.putText(cv2_im, label, (x0, y0+30),
+                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+
+    objects = ct.update(rects)
+    direction_str = "..."
+    # loop over the tracked objects
+    for (objectID, centroid) in objects.items():
+        # check to see if a trackable object exists for the current
+        # object ID
+        to = trackableObjects.get(objectID, None)
+
+        # if there is no existing trackable object, create one
+        if to is None:
+              to = TrackableObject(objectID, centroid)
+
+        # otherwise, there is a trackable object so we can utilize it
+        # to determine direction
+        else:
+             # check to see if the object has been counted or not
+             if not to.counted:
+                    # if the previous centroids from one side
+                    # count as soon as the updated centroid reach other side
+                    for c in to.centroids:
+                          if c[0] < ROI and centroid[0] < ROI:
+                             direction_str = "..."
+                          elif c[0] < ROI and centroid[0] > ROI:
+                             totalCount += 1
+                             to.counted = True
+                             direction_str = "In"
+                             break
+                          elif c[0] > ROI and centroid[0] > ROI:
+                             direction_str = "..."
+                          elif c[0] > ROI and centroid[0] < ROI:
+                             totalCount += 1
+                             to.counted = True
+                             direction_str = "Out"
+                             break
+
+             # update new centroid to trackable object
+             to.centroids.append(centroid)
+
+        # store the trackable object in our dictionary
+        trackableObjects[objectID] = to
+
+        # draw both the ID of the object and the centroid of the
+        # object on the output frame
+        text = "ID {}".format(objectID)
+        cv2.putText(cv2_im, text, (centroid[0] - 10, centroid[1] - 10),
+                                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+        cv2.circle(cv2_im, (centroid[0], centroid[1]), 4, (0, 255, 0), -1)
+
+    return cv2_im, totalCount, direction_str, trackableObjects
 
 # Command-line input setup
 #labels = load_labels('people_label.txt')
@@ -98,7 +164,8 @@ while True:
     W = 600
 
     if frame_num == 1:
-        frame1 = cv2.resize(frame1, width=W, height=H)
+        frame1 = imutils.resize(frame1, width=W, height=H)
+        print('Please specify ROI for distance measurement.')
         # Ask user to mark parallel points and two points 6 feet apart. Order bl, br, tr, tl, p1, p2
         while True:
             image = frame1
@@ -135,7 +202,6 @@ while True:
     # Detect person and bounding boxes using DNN
     pedestrian_boxes, num_pedestrians, frame1 = DNN_distance.detect_distance(
         frame1)
-
     cv2.polylines(frame1, [pts], True, (0, 255, 255), thickness=4)
     
     if len(pedestrian_boxes) > 0:
@@ -195,6 +261,8 @@ while True:
     # output_movie.write(pedestrian_detect)
     # bird_movie.write(bird_image)
     # fps_count.update()
+    te_dtc = time.time()
+    print('Detection in: {}'.format(t_dtc - te_dtc))
 
 fvs1.stop()
 fvs2.stop()
@@ -204,69 +272,3 @@ cv2.destroyAllWindows()
 #print("[INFO] elapsed time: {:.2f}".format(fps_count.elapsed()))
 #print("[INFO] approx. FPS: {:.2f}".format(fps_count.fps()))
 
-def append_objs_to_img(cv2_im, objs, labels, ROI, ct, trackableObjects, totalCount):
-    height, width, channels = cv2_im.shape
-    rects = []
-
-    for obj in objs:
-        x0, y0, x1, y1 = list(obj.bbox)
-        x0, y0, x1, y1 = int(x0*width), int(y0*height), int(x1*width), int(y1*height)
-        if x0 < 100 or x1 > 550:
-              continue
-        rects.append((x0, y0, x1, y1))
-        percent = int(100 * obj.score)
-        label = '{}-{}%'.format(labels.get(obj.id, obj.id), percent)
-
-        cv2_im = cv2.rectangle(cv2_im, (x0, y0), (x1, y1), (0, 255, 0), 2)
-        cv2_im = cv2.putText(cv2_im, label, (x0, y0+30),
-                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
-
-    objects = ct.update(rects)
-    direction_str = "..."
-    # loop over the tracked objects
-    for (objectID, centroid) in objects.items():
-        # check to see if a trackable object exists for the current
-        # object ID
-        to = trackableObjects.get(objectID, None)
-
-        # if there is no existing trackable object, create one
-        if to is None:
-              to = TrackableObject(objectID, centroid)
-
-        # otherwise, there is a trackable object so we can utilize it
-        # to determine direction
-        else:
-             # check to see if the object has been counted or not
-             if not to.counted:
-                    # if the previous centroids from one side
-                    # count as soon as the updated centroid reach other side
-                    for c in to.centroids:
-                          if c[0] < ROI and centroid[0] < ROI:
-                             direction_str = "..."
-                          elif c[0] < ROI and centroid[0] > ROI:
-                             totalCount += 1
-                             to.counted = True
-                             direction_str = "In"
-                             break
-                          elif c[0] > ROI and centroid[0] > ROI:
-                             direction_str = "..."
-                          elif c[0] > ROI and centroid[0] < ROI:
-                             totalCount += 1
-                             to.counted = True
-                             direction_str = "Out"
-                             break
-
-             # update new centroid to trackable object
-             to.centroids.append(centroid)
-
-        # store the trackable object in our dictionary
-        trackableObjects[objectID] = to
-
-        # draw both the ID of the object and the centroid of the
-        # object on the output frame
-        text = "ID {}".format(objectID)
-        cv2.putText(cv2_im, text, (centroid[0] - 10, centroid[1] - 10),
-                                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-        cv2.circle(cv2_im, (centroid[0], centroid[1]), 4, (0, 255, 0), -1)
-
-    return cv2_im, totalCount, direction_str, trackableObjects
