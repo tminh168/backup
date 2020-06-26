@@ -7,12 +7,8 @@ from pyimagesearch.centroidtracker import CentroidTracker
 from pyimagesearch.trackableobject import TrackableObject
 from tpu_model import *
 
-def removekey(d, key):
-    r = dict(d)
-    del r[key]
-    return r
 
-def append_objs_to_img(cv2_im, objs, labels, ROI, ct, trackableObjects, totalCount):
+def append_objs_to_img(cv2_im, countedID, objs, labels, ROI, ct, trackableObjects, totalCount):
     height, width, channels = cv2_im.shape
     rects = []
 
@@ -32,7 +28,6 @@ def append_objs_to_img(cv2_im, objs, labels, ROI, ct, trackableObjects, totalCou
 
     objects = ct.update(rects)
     direction_str = "..."
-    countedID = 0
 
     # loop over the tracked objects
     for (objectID, centroid) in objects.items():
@@ -75,7 +70,7 @@ def append_objs_to_img(cv2_im, objs, labels, ROI, ct, trackableObjects, totalCou
         # update to in dict
         if to.counted:
             # delete from dict
-            removekey(trackableObjects, objectID)
+            del trackableObjects[objectID]
             countedID = objectID
 
         # draw both the ID of the object and the centroid of the
@@ -85,7 +80,7 @@ def append_objs_to_img(cv2_im, objs, labels, ROI, ct, trackableObjects, totalCou
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
         cv2.circle(cv2_im, (centroid[0], centroid[1]), 4, (0, 255, 0), -1)
 
-    return cv2_im, totalCount, direction_str, trackableObjects
+    return cv2_im, countedID, totalCount, direction_str, trackableObjects
 
 
 # Command-line input setup
@@ -108,10 +103,12 @@ H = 400
 W = 600
 ct1 = CentroidTracker(maxDisappeared=2, maxDistance=45)
 ct2 = CentroidTracker(maxDisappeared=2, maxDistance=45)
-trackableObjects1 = {}
-trackableObjects2 = {}
+trackableObjects1 = dict()
+trackableObjects2 = dict()
 totalCount1 = 0
 totalCount2 = 0
+countedID1 = 0
+countedID2 = 0
 ROI = 350
 log_img = False
 
@@ -130,10 +127,10 @@ while True:
     cv2_im2, objs2 = DNN_count2.detect_count(frame2)
     cv2_im1 = cv2.line(cv2_im1, (ROI, 0), (ROI, H), (0, 255, 255), 2)
     cv2_im2 = cv2.line(cv2_im2, (ROI, 0), (ROI, H), (0, 255, 255), 2)
-    cv2_im1, totalCount1, direction_str1, trackableObjects1 = append_objs_to_img(
-        cv2_im1, objs1, labels, ROI, ct1, trackableObjects1, totalCount1)
-    cv2_im2, totalCount2, direction_str2, trackableObjects2 = append_objs_to_img(
-        cv2_im2, objs2, labels, ROI, ct2, trackableObjects2, totalCount2)
+    cv2_im1, countedID1, totalCount1, direction_str1, trackableObjects1 = append_objs_to_img(
+        cv2_im1, countedID1, objs1, labels, ROI, ct1, trackableObjects1, totalCount1)
+    cv2_im2, countedID2, totalCount2, direction_str2, trackableObjects2 = append_objs_to_img(
+        cv2_im2, countedID2, objs2, labels, ROI, ct2, trackableObjects2, totalCount2)
 
     info1 = [
         ("Direction", direction_str1),
