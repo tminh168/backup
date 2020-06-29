@@ -1,15 +1,15 @@
 import cv2
 import time
-import imutils
-from imutils.video import FPS
-from imutils.video import WebcamVideoStream
+#import imutils
+#from imutils.video import FPS
+from cameravideostream import CameraVideoStream
 from pyimagesearch.centroidtracker import CentroidTracker
 from pyimagesearch.trackableobject import TrackableObject
 from tpu_model import *
 
-
+# final optimized version by Minh HO
 def append_objs_to_img(cv2_im, countedID, objs, labels, ROI, ct, trackableObjects, totalCount):
-    height, width, channels = cv2_im.shape
+    height, width = cv2_im.shape[:2]
     rects = []
 
     for obj in objs:
@@ -26,6 +26,7 @@ def append_objs_to_img(cv2_im, countedID, objs, labels, ROI, ct, trackableObject
         cv2_im = cv2.putText(cv2_im, label, (x0, y0+30),
                              cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
 
+    # update the current matched object IDs
     objects = ct.update(rects)
     direction_str = "..."
 
@@ -35,37 +36,34 @@ def append_objs_to_img(cv2_im, countedID, objs, labels, ROI, ct, trackableObject
         # object ID
         to = trackableObjects.get(objectID, None)
 
-        # Create new obj if never counted
-        if to is None and objectID != countedID: 
+        # Create new obj if never counted (<countedID)
+        if to is None and objectID > countedID:
             to = TrackableObject(objectID, centroid)
-        # bypass obj if already counted
-        elif to is None and objectID == countedID:
+        # bypass obj if already counted in previous frame (=countedID) and old ID (<countedID)
+        elif to is None and objectID <= countedID:
             continue
         # otherwise, there is a trackable object so we can utilize it
         # to determine direction
         else:
             # check to see if the object has been counted or not
             if not to.counted:
-                # if the previous centroids from one side
-                # count as soon as the updated centroid reach other side
-                for c in to.centroids:
-                    if c[0] < ROI and centroid[0] < ROI:
-                        direction_str = "..."
-                    elif c[0] < ROI and centroid[0] > ROI:
-                        totalCount += 1
-                        to.counted = True
-                        direction_str = "In"
-                        break
-                    elif c[0] > ROI and centroid[0] > ROI:
-                        direction_str = "..."
-                    elif c[0] > ROI and centroid[0] < ROI:
-                        totalCount += 1
-                        to.counted = True
-                        direction_str = "Out"
-                        break
+                # compare first centroid and the current one to detemine direction
+                c = to.centroids
+                if c[0] < ROI and centroid[0] < ROI:
+                    direction_str = "..."
+                elif c[0] < ROI and centroid[0] > ROI:
+                    totalCount += 1
+                    to.counted = True
+                    direction_str = "In"
+                elif c[0] > ROI and centroid[0] > ROI:
+                    direction_str = "..."
+                elif c[0] > ROI and centroid[0] < ROI:
+                    totalCount += 1
+                    to.counted = True
+                    direction_str = "Out"
 
-                to.centroids.append(centroid)
-            
+                # to.centroids.append(centroid)
+
         trackableObjects[objectID] = to
         # update to in dict
         if to.counted:
@@ -96,13 +94,13 @@ base_dir = '/home/mendel/coral/DFM_counter'
 DNN_count1 = model_tpu(model_1)
 DNN_count2 = model_tpu(model_2)
 # Get video handle
-fvs1 = WebcamVideoStream(src=stream_1).start()
-fvs2 = WebcamVideoStream(src=stream_2).start()
+fvs1 = CameraVideoStream(src=stream_1).start()
+fvs2 = CameraVideoStream(src=stream_2).start()
 time.sleep(1.0)
 H = 400
 W = 600
-ct1 = CentroidTracker(maxDisappeared=2, maxDistance=45)
-ct2 = CentroidTracker(maxDisappeared=2, maxDistance=45)
+ct1 = CentroidTracker(maxDisappeared=2, maxDistance=55)
+ct2 = CentroidTracker(maxDisappeared=2, maxDistance=55)
 trackableObjects1 = dict()
 trackableObjects2 = dict()
 totalCount1 = 0
