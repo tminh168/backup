@@ -1,41 +1,10 @@
 import cv2
 import time
-import gc
-from multiprocessing import Process, Manager
 from cameravideostream import CameraVideoStream
 from pyimagesearch.centroidtracker import CentroidTracker
 from pyimagesearch.trackableobject import TrackableObject
 from tpu_model import *
 
-# Write data to the shared buffer stack:
-def capture(stack, cam, top: int) -> None:
-    """
-         :param cam: camera parameters
-         :param stack: Manager.list object
-         :param top: buffer stack capacity
-    :return: None
-    """
-    #print('Process to write: %s' % os.getpid())
-    cap = cv2.VideoCapture(cam)
-    while True:
-        _, frame = cap.read()
-        if _:
-            stack.append(frame)
-            # Clear the buffer stack every time it reaches a certain capacity
-            # Use the gc library to manually clean up memory garbage to prevent memory overflow
-            if len(stack) >= top:
-                del stack[:]
-                gc.collect()
-
-# Read data in the buffer stack:
-def cap_read(stack):
-    #print('Process to read: %s' % os.getpid())
-    # while True:
-    if len(stack) != 0:
-        frame = stack.pop()
-        return frame
-    else: 
-        return
 
 # final optimized version by Minh HO
 def append_objs_to_img(cv2_im, countedID, objs, labels, ROI, ct, trackableObjects, totalCount):
@@ -110,14 +79,10 @@ def append_objs_to_img(cv2_im, countedID, objs, labels, ROI, ct, trackableObject
 
     return cv2_im, countedID, totalCount, direction_str, trackableObjects
 
-# Command-line input setup
-#labels = load_labels('people_label.txt')
-stream_1 = 'rtsp://192.168.200.78:556/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp?real_stream'
-stream_2 = 'rtsp://192.168.200.79:554/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp?real_stream'
-model = 'detection_toco_edgetpu.tflite'
 
-def tf_count(q_1, q_2):
-
+def tf_count():
+    stream_1 = 'rtsp://192.168.200.78:556/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp?real_stream'
+    stream_2 = 'rtsp://192.168.200.79:554/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp?real_stream'
     model_1 = 'detection_1_edgetpu.tflite'
     model_2 = 'detection_2_edgetpu.tflite'
     base_dir = '/home/mendel/coral/DFM_counter'
@@ -125,6 +90,8 @@ def tf_count(q_1, q_2):
     # Define a DNN model
     DNN_count1 = model_tpu(model_1)
     DNN_count2 = model_tpu(model_2)
+    fvs1 = CameraVideoStream(src=stream_1).start()
+    fvs2 = CameraVideoStream(src=stream_2).start()
     time.sleep(1.0)
     H = 400
     W = 600
@@ -144,8 +111,8 @@ def tf_count(q_1, q_2):
         t_dtc = time.time()
         direction_str1 = "..."
         direction_str2 = "..."
-        frame1 = cap_read(q_1)
-        frame2 = cap_read(q_2)
+        frame1 = fvs1.read()
+        frame2 = fvs2.read()
 
         if frame1 is None or frame2 is None:
             continue
@@ -192,23 +159,7 @@ def tf_count(q_1, q_2):
         te_dtc = time.time()
         print('frame: {:.3f}'.format(te_dtc - t_dtc))
 
+    return 1
 
 if __name__ == '__main__':
-    # The parent process creates a buffer stack and passes it to each child process:
-    q_1 = Manager().list()
-    q_2 = Manager().list()
-    pcap_1 = Process(target=capture, args=(q_1, stream_1, 100))
-    pcap_2 = Process(target=capture, args=(q_2, stream_2, 100))
-    pcount = Process(target=tf_count, args=(q_1, q_2,))
-    # Start the child process pw, write:
-    pcap_1.start()
-    pcap_2.start()
-    # Start the child process pr, read:
-    pcount.start()
-
-    # Wait for pr to end:
-    pcount.join()
-
-    # pw Process is an infinite loop, can not wait for its end, can only be forced to terminate:
-    pcap_1.terminate()
-    pcap_2.terminate()
+    count = tf_count()
