@@ -81,6 +81,10 @@ def append_objs_to_img(cv2_im, countedID, objs, labels, ROI, ct, trackableObject
 
 
 def tf_count():
+    with open('count.txt', 'r') as file:
+        count_ckpt = file.read().split('\n')
+    file.close()
+    
     stream_1 = 'rtsp://192.168.200.78:556/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp?real_stream'
     stream_2 = 'rtsp://192.168.200.79:554/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp?real_stream'
     model_1 = 'detection_1_edgetpu.tflite'
@@ -92,23 +96,26 @@ def tf_count():
     DNN_count2 = model_tpu(model_2)
     fvs1 = CameraVideoStream(src=stream_1).start()
     fvs2 = CameraVideoStream(src=stream_2).start()
-    time.sleep(1.0)
+    time.sleep(0.1)
     H = 400
     W = 600
     ct1 = CentroidTracker(maxDisappeared=2, maxDistance=55)
     ct2 = CentroidTracker(maxDisappeared=2, maxDistance=55)
     trackableObjects1 = dict()
     trackableObjects2 = dict()
-    totalCount1 = 0
-    totalCount2 = 0
+    totalCount1 = int(count_ckpt[0])
+    totalCount2 = int(count_ckpt[1])
     countedID1 = 0
     countedID2 = 0
     ROI = 350
     log_img = False
 
+    timeout_rs = 10500
+    timeout_end = time.time() + timeout_rs
     # Process each frame, until end of video
     while True:
         t_dtc = time.time()
+
         direction_str1 = "..."
         direction_str2 = "..."
         frame1 = fvs1.read()
@@ -159,7 +166,14 @@ def tf_count():
         te_dtc = time.time()
         print('frame: {:.3f}'.format(te_dtc - t_dtc))
 
+        if te_dtc >= timeout_end:
+            with open('count.txt', 'w') as file:
+                file.write(str(totalCount1) + '\n' + str(totalCount2))
+            file.close()
+
+            break
+
     return 1
 
 if __name__ == '__main__':
-    count = tf_count()
+    passenger_counting = tf_count()
