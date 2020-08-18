@@ -2,9 +2,9 @@ import cv2
 import os
 import time
 import argparse
+import imutils
 import numpy as np
-from imutils.video import FPS
-from imutils.video import WebcamVideoStream
+from cameravideostream import CameraVideoStream
 from pyimagesearch.centroidtracker import CentroidTracker
 from tpu_model import *
 from track_distance import *
@@ -47,18 +47,15 @@ base_dir = '/home/mendel/coral/DFM_counter'
 # Define a DNN model
 DNN = model_tpu(model_1)
 # Get video handle
-fvs = WebcamVideoStream(stream_1).start()
+fvs = CameraVideoStream(stream_1).start()
 
 SOLID_BACK_COLOR = (41, 41, 41)
 
 # Initialize necessary variables
 frame_num = 0
-total_pedestrians_detected = 0
 total_six_feet_violations = 0
-total_pairs = 0
-abs_six_feet_violations = 0
 
-ct = CentroidTracker(maxDisappeared=2, maxDistance=55)
+ct = CentroidTracker(maxDisappeared=2, maxDistance=45)
 trackableObjects = dict()
 totalCount = 0
 countedID = 0
@@ -68,12 +65,11 @@ log_img = False
 cv2.namedWindow("image")
 cv2.setMouseCallback("image", get_mouse_points)
 num_mouse_points = 0
-first_frame_display = True
-fps_count = FPS().start()
 
 # Process each frame, until end of video
 while True:
     direction_str = "..."
+    distance = "..."
     frame_num += 1
     frame = fvs.read()
 
@@ -96,7 +92,6 @@ while True:
             if len(mouse_pts) == 3:
                 cv2.destroyWindow("image")
                 break
-            first_frame_display = False
         two_points = mouse_pts
 
         # Get threshold distance and bird image
@@ -105,7 +100,7 @@ while True:
             + (two_points[0][1] - two_points[1][1]) ** 2
         )
         bird_image = np.zeros(
-            (int(frame_h), int(frame_w), 3), np.uint8
+            (H, W, 3), np.uint8
         )
 
         bird_image[:] = SOLID_BACK_COLOR
@@ -121,18 +116,39 @@ while True:
     frame_ctr, countedID, totalCount, direction_str, ct, trackableObjects = append_objs_counter(
             frame_ctr, countedID, pedestrian_boxes, ROI, ct, trackableObjects, totalCount)
 
-    frame_dist = append_objs_distance(frame, pedestrian_boxes, d_thresh)
+    frame_dist, dist_violation = append_objs_distance(frame, pedestrian_boxes, d_thresh)
     te_dtc = time.time()
-    print('Detection: {}'.format(te_dtc - t_dtc))
+    dtc_rate = te_dtc - t_dtc
+    print('Detection: {}'.format(dtc_rate))
 
-    info = [
+    info_ctr = [
         ("Direction", direction_str),
         ("Count", totalCount),
     ]
-    for (i, (k, v)) in enumerate(info):
+    for (i, (k, v)) in enumerate(info_ctr):
         text = "{}: {}".format(k, v)
         cv2.putText(frame_ctr, text, (10, H - ((i * 20) + 20)),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+
+    dist_count = []
+    if len(dist_violation) > 0:
+        for i in range(len(dist_violation)):
+            dist_m = "{:.2f}".format(dist_violation[i] / d_thresh * 2.00)
+            total_six_feet_violations += 1
+            dist_count.append(dist_m)
+    if len(dist_count) > 0:
+        distance = ""
+        for i in range(len(dist_count)):
+            distance = distance + str(dist_count[i]) + " "
+    
+    info_dist = [
+        ("Distance(m)", distance),
+        ("Violation", total_six_feet_violations),
+    ]
+    for (i, (k, v)) in enumerate(info_dist):
+        text = "{}: {}".format(k, v)
+        cv2.putText(frame_dist, text, (10, H - ((i * 20) + 20)),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
 
     cv2.imshow("Frame counter", frame_ctr)
     cv2.imshow("Frame distance", frame_dist)
@@ -141,8 +157,4 @@ while True:
     # bird_movie.write(bird_image)
     #te_write=time.time()
     #print('Write: {}'.format(te_write - te_text))
-    fps_count.update()
 
-fps_count.stop()
-print("[INFO] elapsed time: {:.2f}".format(fps_count.elapsed()))
-print("[INFO] approx. FPS: {:.2f}".format(fps_count.fps()))

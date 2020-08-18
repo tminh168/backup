@@ -19,38 +19,43 @@ def append_objs_distance(frame, pedestrian_boxes, d_thresh):
     )
     bird_image[:] = solid_back_color
     center_pts = []
-    for i in range(len(pedestrian_boxes)):
+    dist_violation = []
+    if len(pedestrian_boxes) > 0:
+        for i in range(len(pedestrian_boxes)):
 
-        mid_point_x = int(
-            (pedestrian_boxes[i][1] * frame_w +
-             pedestrian_boxes[i][3] * frame_w) / 2
-        )
-        mid_point_y = int(
-            (pedestrian_boxes[i][0] * frame_h +
-             pedestrian_boxes[i][2] * frame_h) / 2
-        )
+            mid_point_x = int(
+                (pedestrian_boxes[i][1] * frame_w +
+                pedestrian_boxes[i][3] * frame_w) / 2
+            )
+            mid_point_y = int(
+                (pedestrian_boxes[i][0] * frame_h +
+                pedestrian_boxes[i][2] * frame_h) / 2
+            )
 
-        #pts = np.array([[[mid_point_x, mid_point_y]]], dtype="float32")
-        pts = [mid_point_x, mid_point_y]
-        #pts = [mid_point_x, mid_point_y]
-        center_pts.append(pts)
-        bird_image = cv2.circle(
-            bird_image,
-            (pts[0], pts[1]),
-            node_radius,
-            color_node,
-            thickness_node,
-        )
+            #pts = np.array([[[mid_point_x, mid_point_y]]], dtype="float32")
+            pts = [mid_point_x, mid_point_y]
+            #pts = [mid_point_x, mid_point_y]
+            center_pts.append(pts)
+            bird_image = cv2.circle(
+                bird_image,
+                (pts[0], pts[1]),
+                node_radius,
+                color_node,
+                thickness_node,
+            )
 
     if len(center_pts) > 1:
         p = np.array(center_pts)
         dist_condensed = pdist(p)
         dist = squareform(dist_condensed)
 
-        dd = np.where(dist < d_thresh * 5 / 4)
         # six_feet_violations = len(np.where(dist_condensed < d_thresh)[0])
+        for i in range(len(dist_condensed)):
+            if dist_condensed[i] < d_thresh:
+                dist_violation.append(dist_condensed[i])
+
         # total_pairs = len(dist_condensed)
-        #danger_p = []
+        dd = np.where(dist < d_thresh)
         color_6 = (52, 92, 227)
         for i in range(int(np.ceil(len(dd[0]) / 2))):
             if dd[0][i] != dd[1][i]:
@@ -66,7 +71,7 @@ def append_objs_distance(frame, pedestrian_boxes, d_thresh):
                     lineThickness,
                 )
 
-    return bird_image
+    return bird_image, dist_violation
 
 
 def append_objs_counter(frame, countedID, pedestrian_boxes, ROI, ct, trackableObjects, totalCount):
