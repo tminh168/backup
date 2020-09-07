@@ -7,6 +7,7 @@ import cv2
 import os
 import imutils
 import numpy as np
+import time
 from main_tpu_demo import AImodel_tpu
 
 class Dialog(QDialog):
@@ -52,10 +53,11 @@ class Dialog(QDialog):
         self.formGroupBox.setLayout(layout)
 
     def getModel(self):
-        items = ("SSD Mobilenet v2 detection", "SSD Custom People detection")
+        items = ("SSD Custom People detection")
 
         item, ok = QInputDialog.getItem(self, "select model input",
                                         "detection model", items, 0, False)
+        
 
         if ok and item:
             self.lnModel.setText(item)
@@ -127,6 +129,7 @@ class Dialog(QDialog):
 
         self.ai = AImodel_tpu(self.input_Model, self.input_Cam, self.input_Limit, two_points)
         self.ai.start()
+        time.sleep(0.5)
         # model_run("15fps.mp4")
         # model_run(self.input_Model, self.input_Cam, self.input_Limit)
         

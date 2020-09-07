@@ -39,6 +39,15 @@ class AImodel_tpu(threading.Thread):
         self.limit = int(input_lim)
         self.two_points = input_pts
 
+        # Initialize necessary variables
+        self.ct = CentroidTracker(maxDisappeared=2, maxDistance=45)
+        self.trackableObjects = dict()
+        self.totalCount = 0
+        self.countedID = 0
+        self.ROI = 350
+        self.frame_num = 0
+        self.total_six_feet_violations = 0
+
         self.run_flag = True
 
     def terminate(self, timeout=0):
@@ -47,16 +56,7 @@ class AImodel_tpu(threading.Thread):
         threading.Thread.join(self, timeout)
 
     def run(self):
-        # Initialize necessary variables
-        SOLID_BACK_COLOR = (41, 41, 41)
-        ct = CentroidTracker(maxDisappeared=2, maxDistance=45)
-        trackableObjects = dict()
-        totalCount = 0
-        countedID = 0
-        ROI = 350
-        frame_num = 0
-        total_six_feet_violations = 0
-
+        
         # Process each frame, until end of video
         while not self._stopevent.isSet():
             if not self.run_flag:
@@ -64,7 +64,7 @@ class AImodel_tpu(threading.Thread):
 
             direction_str = "..."
             distance = "..."
-            frame_num += 1
+            self.frame_num += 1
             frame = self.fvs.read()
 
             if frame is None:
@@ -73,26 +73,22 @@ class AImodel_tpu(threading.Thread):
             H = 480
             W = 640
 
-            if frame_num == 1:
+            if self.frame_num == 1:
                 # Get threshold distance and bird image
                 d_thresh = np.sqrt(
                     (self.two_points[0][0] - self.two_points[1][0]) ** 2
                     + (self.two_points[0][1] - self.two_points[1][1]) ** 2
                 )
-                bird_image = np.zeros(
-                    (H, W, 3), np.uint8
-                )
-                bird_image[:] = SOLID_BACK_COLOR
-
+                
             #print("Processing frame: ", frame_num)
 
             t_dtc = time.time()
             # Detect person and bounding boxes using DNN
             frame, pedestrian_boxes = self.DNN.detect_distance(frame)
 
-            frame_ctr = cv2.line(frame, (ROI, 0), (ROI, H), (0, 255, 255), 2)
-            frame_ctr, countedID, totalCount, direction_str, ct, trackableObjects = append_objs_counter(
-                    frame_ctr, countedID, pedestrian_boxes, ROI, ct, trackableObjects, totalCount)
+            frame_ctr = cv2.line(frame, (self.ROI, 0), (self.ROI, H), (0, 255, 255), 2)
+            frame_ctr, self.countedID, self.totalCount, direction_str, self.ct, self.trackableObjects = append_objs_counter(
+                    frame_ctr, self.countedID, pedestrian_boxes, self.ROI, self.ct, self.trackableObjects, self.totalCount)
 
             frame_dist, dist_violation = append_objs_distance(frame, pedestrian_boxes, d_thresh)
             te_dtc = time.time()
@@ -101,7 +97,7 @@ class AImodel_tpu(threading.Thread):
 
             info_ctr = [
                 ("Direction", direction_str),
-                ("Count", totalCount),
+                ("Count", self.totalCount),
             ]
             for (i, (k, v)) in enumerate(info_ctr):
                 text = "{}: {}".format(k, v)
@@ -121,7 +117,7 @@ class AImodel_tpu(threading.Thread):
             
             info_dist = [
                 ("Distance(m)", distance),
-                ("Violation", total_six_feet_violations),
+                ("Violation", self.total_six_feet_violations),
             ]
             for (i, (k, v)) in enumerate(info_dist):
                 text = "{}: {}".format(k, v)
