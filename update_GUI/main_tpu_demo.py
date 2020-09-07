@@ -17,6 +17,8 @@ class AImodel_tpu(threading.Thread):
 
         threading.Thread.__init__(self)
 
+        cam_78 = 'rtsp://192.168.200.78:556/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp?real_stream'
+        cam_81 = 'rtsp://192.168.200.81:554/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp?real_stream'
         model_People = 'detection_toco_edgetpu.tflite'
         model_SSD = 'mobilenet_ssd_v2_edgetpu.tflite'
 
@@ -24,8 +26,10 @@ class AImodel_tpu(threading.Thread):
             model = model_SSD
         elif input_model == "SSD Custom People detection":
             model = model_People
-        
-        camip = 'rtsp://' + str(input_cam) + ':556/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp?real_stream'
+        if input_cam == "192.168.200.78":
+            camip = cam_78
+        elif input_cam == "192.168.200.81":
+            camip = cam_81
         
         self.limit = int(input_lim)
         self.two_points = input_pts

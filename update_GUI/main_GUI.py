@@ -26,7 +26,8 @@ class Dialog(QDialog):
         mainLayout.addWidget(self.formGroupBox)
         mainLayout.addWidget(self.buttonBox)
         self.setLayout(mainLayout)
-        self.resize(375, 150)
+        #self.resize(375, 150)
+        self.setGeometry(200, 200, 800, 600)
 
         self.ai = None
         self.setWindowTitle("DFM AI demo option")
@@ -102,7 +103,13 @@ class Dialog(QDialog):
         cv2.namedWindow("Click to set threshold distance")
         cv2.setMouseCallback("Click to set threshold distance", get_mouse_points)
 
-        input_cam = 'rtsp://' + str(self.input_Cam) + ':556/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp?real_stream'
+        cam_78 = 'rtsp://192.168.200.78:556/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp?real_stream'
+        cam_81 = 'rtsp://192.168.200.81:554/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp?real_stream'
+
+        if self.input_Cam == "192.168.200.78":
+            input_cam = cam_78
+        elif self.input_Cam == "192.168.200.81":
+            input_cam = cam_81
         fvs = cv2.VideoCapture(input_cam)
         ret, frame = fvs.read()
         frame = imutils.resize(frame, width=640, height=480)
