@@ -1,10 +1,9 @@
 from PyQt5 import QtGui
 from PyQt5.QtWidgets import (QApplication, QWidget, QDialog, QGroupBox,
 QDialogButtonBox, QFormLayout, QLabel, QLineEdit, QInputDialog, QPushButton, QVBoxLayout)
-from PyQt5.QtCore import pyqtSignal, pyqtSlot
+from PyQt5.QtCore import pyqtSignal, pyqtSlot, Qt
 import sys
 import cv2
-import os
 import imutils
 import numpy as np
 import time
@@ -53,7 +52,7 @@ class Dialog(QDialog):
         self.formGroupBox.setLayout(layout)
 
     def getModel(self):
-        items = ("SSD Custom People detection")
+        items = ("SSD Custom People detection", " ")
 
         item, ok = QInputDialog.getItem(self, "select model input",
                                         "detection model", items, 0, False)
@@ -66,7 +65,7 @@ class Dialog(QDialog):
 
     def getCam(self):
 
-        items = ("192.168.200.78", "192.168.200.79", "192.168.200.81")
+        items = ("192.168.200.78", "192.168.200.81")
 
         item, ok = QInputDialog.getItem(self, "select mode input",
                                         "camera IP selection", items, 0, False)
@@ -130,8 +129,7 @@ class Dialog(QDialog):
         self.ai = AImodel_tpu(self.input_Model, self.input_Cam, self.input_Limit, two_points)
         self.ai.start()
         time.sleep(0.5)
-        # model_run("15fps.mp4")
-        # model_run(self.input_Model, self.input_Cam, self.input_Limit)
+
         
     def abortModel(self):
         print('stopping..')
@@ -148,7 +146,7 @@ class Dialog(QDialog):
         print("restart now")
 
         import os
-        os.execv(sys.executable, ['python'] + sys.argv)
+        os.execv(sys.executable, ['python3'] + sys.argv)
 
 if __name__=="__main__":
     app = QApplication(sys.argv)

@@ -10,6 +10,7 @@ from tpu_model import *
 from track_distance import *
 import threading
 
+
 class AImodel_tpu(threading.Thread):
     def __init__(self, input_model, input_cam, input_lim, input_pts):
         self._stopevent = threading.Event()
@@ -25,17 +26,15 @@ class AImodel_tpu(threading.Thread):
         if input_model == "SSD Mobilenet v2 detection":
             labels = load_labels('coco_labels.txt')
             self.DNN = model_tpu(model_SSD, labels)
-
         elif input_model == "SSD Custom People detection":
             labels = load_labels('people_label.txt')
             self.DNN = model_tpu(model_People, labels)
-
 
         if input_cam == "192.168.200.78":
             self.fvs = CameraVideoStream(cam_78).start()
         elif input_cam == "192.168.200.81":
             self.fvs = CameraVideoStream(cam_81).start()
-        
+
         self.limit = int(input_lim)
         self.two_points = input_pts
 
@@ -45,26 +44,28 @@ class AImodel_tpu(threading.Thread):
         self.totalCount = 0
         self.countedID = 0
         self.ROI = 350
-        self.frame_num = 0
         self.total_six_feet_violations = 0
+        self.d_thresh = np.sqrt(
+            (input_pts[0][0] - input_pts[1][0]) ** 2
+            + (input_pts[0][1] - input_pts[1][1]) ** 2
+        )
 
-        self.run_flag = True
+        #self.run_flag = True
 
     def terminate(self, timeout=0):
-        self.run_flag = False
+        #self.run_flag = False
         self._stopevent.set()
+        time.sleep(0.5)
         threading.Thread.join(self, timeout)
 
     def run(self):
-        
         # Process each frame, until end of video
         while not self._stopevent.isSet():
-            if not self.run_flag:
-                break
+            # if not self.run_flag:
+             #   break
 
             direction_str = "..."
             distance = "..."
-            self.frame_num += 1
             frame = self.fvs.read()
 
             if frame is None:
@@ -73,24 +74,17 @@ class AImodel_tpu(threading.Thread):
             H = 480
             W = 640
 
-            if self.frame_num == 1:
-                # Get threshold distance and bird image
-                d_thresh = np.sqrt(
-                    (self.two_points[0][0] - self.two_points[1][0]) ** 2
-                    + (self.two_points[0][1] - self.two_points[1][1]) ** 2
-                )
-                
-            #print("Processing frame: ", frame_num)
-
             t_dtc = time.time()
             # Detect person and bounding boxes using DNN
             frame, pedestrian_boxes = self.DNN.detect_distance(frame)
 
-            frame_ctr = cv2.line(frame, (self.ROI, 0), (self.ROI, H), (0, 255, 255), 2)
+            frame_ctr = cv2.line(frame, (self.ROI, 0),
+                                 (self.ROI, H), (0, 255, 255), 2)
             frame_ctr, self.countedID, self.totalCount, direction_str, self.ct, self.trackableObjects = append_objs_counter(
-                    frame_ctr, self.countedID, pedestrian_boxes, self.ROI, self.ct, self.trackableObjects, self.totalCount)
+                frame_ctr, self.countedID, pedestrian_boxes, self.ROI, self.ct, self.trackableObjects, self.totalCount)
 
-            frame_dist, dist_violation = append_objs_distance(frame, pedestrian_boxes, d_thresh)
+            frame_dist, dist_violation = append_objs_distance(
+                frame, pedestrian_boxes, self.d_thresh)
             te_dtc = time.time()
             dtc_rate = te_dtc - t_dtc
             print('Detection: {}'.format(dtc_rate))
@@ -107,14 +101,15 @@ class AImodel_tpu(threading.Thread):
             dist_count = []
             if len(dist_violation) > 0:
                 for i in range(len(dist_violation)):
-                    dist_m = "{:.2f}".format(dist_violation[i] / d_thresh * self.limit)
-                    total_six_feet_violations += 1
+                    dist_m = "{:.2f}".format(
+                        dist_violation[i] / self.d_thresh * self.limit)
+                    self.total_six_feet_violations += 1
                     dist_count.append(dist_m)
             if len(dist_count) > 0:
                 distance = ""
                 for i in range(len(dist_count)):
                     distance = distance + str(dist_count[i]) + " "
-            
+
             info_dist = [
                 ("Distance(m)", distance),
                 ("Violation", self.total_six_feet_violations),
