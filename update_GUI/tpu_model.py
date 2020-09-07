@@ -45,7 +45,7 @@ def get_output(interpreter, score_threshold, top_k, image_scale=1.0):
     return [make(i) for i in range(top_k) if scores[i] >= score_threshold]
 
 
-labels = load_labels('people_label.txt')
+#labels = load_labels('people_label.txt')
 stream_1 = 'rtsp://192.168.200.78:556/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp?real_stream'
 stream_2 = 'rtsp://192.168.200.79:554/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp?real_stream'
 model_1 = 'detection_1_edgetpu.tflite'
@@ -55,11 +55,12 @@ base_dir = '/home/mendel/coral/DFM_counter'
 
 
 class model_tpu:
-    def __init__(self, model):
+    def __init__(self, model, labels):
         self.H = 480
         self.W = 640
         self.top_k = 10
         self.threshold = 0.8
+        self.labels = labels
 
         self.interpreter = common.make_interpreter(model)
         self.interpreter.allocate_tensors()
@@ -85,7 +86,7 @@ class model_tpu:
         pedestrian_boxes = []
 
         for obj in objs:
-            if labels.get(obj.id, obj.id) == "person":
+            if self.labels.get(obj.id, obj.id) == "person":
                 x0, y0, x1, y1 = list(obj.bbox)
                 # x0, y0, x1, y1 = int(
                 #     x0*width), int(y0*height), int(x1*width), int(y1*height)

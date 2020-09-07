@@ -23,21 +23,21 @@ class AImodel_tpu(threading.Thread):
         model_SSD = 'mobilenet_ssd_v2_edgetpu.tflite'
 
         if input_model == "SSD Mobilenet v2 detection":
-            model = model_SSD
+            labels = load_labels('coco_labels.txt')
+            self.DNN = model_tpu(model_SSD, labels)
+
         elif input_model == "SSD Custom People detection":
-            model = model_People
+            labels = load_labels('people_label.txt')
+            self.DNN = model_tpu(model_People, labels)
+
+
         if input_cam == "192.168.200.78":
-            camip = cam_78
+            self.fvs = CameraVideoStream(cam_78).start()
         elif input_cam == "192.168.200.81":
-            camip = cam_81
+            self.fvs = CameraVideoStream(cam_81).start()
         
         self.limit = int(input_lim)
         self.two_points = input_pts
-
-        # Define a DNN model
-        self.DNN = model_tpu(model)
-        # Get video handle
-        self.fvs = CameraVideoStream(camip).start()
 
         self.run_flag = True
 
