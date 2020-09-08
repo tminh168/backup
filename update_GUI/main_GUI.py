@@ -1,6 +1,6 @@
 from PyQt5 import QtGui
 from PyQt5.QtWidgets import (QApplication, QWidget, QDialog, QGroupBox,
-QDialogButtonBox, QFormLayout, QLabel, QLineEdit, QInputDialog, QPushButton, QVBoxLayout)
+                             QDialogButtonBox, QFormLayout, QLabel, QLineEdit, QInputDialog, QPushButton, QVBoxLayout)
 from PyQt5.QtCore import pyqtSignal, pyqtSlot, Qt
 import sys
 import cv2
@@ -8,7 +8,8 @@ import imutils
 import numpy as np
 import time
 from main_tpu_procs import AImodel_tpu
-from multiprocessing import Process
+from multiprocessing import Process, Queue
+
 
 class Dialog(QDialog):
     NumGridRows = 3
@@ -30,6 +31,8 @@ class Dialog(QDialog):
         #self.resize(375, 150)
         self.setGeometry(200, 200, 800, 600)
 
+        self.q_ctr = Queue()
+        self.q_dist = Queue()
         self.p = None
         self.setWindowTitle("DFM AI demo option")
 
@@ -57,7 +60,6 @@ class Dialog(QDialog):
 
         item, ok = QInputDialog.getItem(self, "select model input",
                                         "detection model", items, 0, False)
-        
 
         if ok and item:
             self.lnModel.setText(item)
@@ -90,20 +92,22 @@ class Dialog(QDialog):
         self.buttonBox.button(QDialogButtonBox.Ok).setDisabled(True)
 
         mouse_pts = []
+
         def get_mouse_points(event, x, y, flags, param):
             # Used to mark 4 points on the frame zero of the video that will be warped
             # Used to mark 2 points on the frame zero of the video that are 6 feet away
             global mouseX, mouseY
             if event == cv2.EVENT_LBUTTONDOWN:
                 mouseX, mouseY = x, y
-                #if "mouse_pts" not in globals():
+                # if "mouse_pts" not in globals():
                 #    mouse_pts = []
                 mouse_pts.append((x, y))
                 print("Point detected")
                 print(mouse_pts)
 
         cv2.namedWindow("Click to set threshold distance")
-        cv2.setMouseCallback("Click to set threshold distance", get_mouse_points)
+        cv2.setMouseCallback(
+            "Click to set threshold distance", get_mouse_points)
 
         cam_78 = 'rtsp://192.168.200.78:556/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp?real_stream'
         cam_81 = 'rtsp://192.168.200.81:554/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp?real_stream'
@@ -127,15 +131,28 @@ class Dialog(QDialog):
         fvs.release()
         two_points = mouse_pts
 
-        self.p = Process(target=AImodel_tpu, args=(self.input_Model, self.input_Cam, self.input_Limit, two_points,))
+        self.p = Process(target=AImodel_tpu, args=(
+            self.input_Model, self.input_Cam, self.input_Limit, two_points, self.q_ctr, self.q_dist,))
+        self.p.daemon = True
         self.p.start()
         #self.ai = AImodel_tpu(self.input_Model, self.input_Cam, self.input_Limit, two_points)
-        #self.ai.start()
-        self.p.join()
-
+        # self.ai.start()
         
+        while True:
+            f_ctr = self.q_ctr.get()
+            f_dist = self.q_dist.get()
+            
+            if f_ctr or f_dist:
+                cv2.imshow("Frame counter", f_ctr)
+                cv2.imshow("Frame distance", f_dist)
+                cv2.waitKey(1)
+            else:
+                break
+
+
     def abortModel(self):
         print('stopping..')
+
         if self.p:
             self.p.terminate()
             self.p.join()
@@ -150,17 +167,18 @@ class Dialog(QDialog):
             self.buttonBox.button(QDialogButtonBox.Ok).setEnabled(True)
 
         self.restart()
-        
+
     def restart(self):
         import sys
-        print("argv was",sys.argv)
+        print("argv was", sys.argv)
         print("sys.executable was", sys.executable)
         print("restart now")
 
         import os
         os.execv(sys.executable, ['python3'] + sys.argv)
 
-if __name__=="__main__":
+
+if __name__ == "__main__":
     app = QApplication(sys.argv)
     dialog = Dialog()
     dialog.show()
