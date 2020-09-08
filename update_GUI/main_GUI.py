@@ -1,4 +1,5 @@
 from PyQt5 import QtGui
+from PyQt5.QtGui import QPixmap
 from PyQt5.QtWidgets import (QApplication, QWidget, QDialog, QGroupBox,
                              QDialogButtonBox, QFormLayout, QLabel, QLineEdit, QInputDialog, QPushButton, QVBoxLayout)
 from PyQt5.QtCore import pyqtSignal, pyqtSlot, Qt
@@ -10,6 +11,75 @@ import time
 from main_tpu_procs import AImodel_tpu
 from multiprocessing import Process, Queue
 
+class VideoThread(QThread):
+    change_pixmap_signal = pyqtSignal(np.ndarray, np.ndarray)
+
+    def __init__(self):
+        super().__init__()
+        self._run_flag = True
+
+    def run(self):
+        # capture from web cam
+        #cap = cv2.VideoCapture("15fps.mp4")
+        global dialog
+        while self._run_flag:
+            cv_ctr = dialog.q_ctr.get()
+            cv_dist = dialog.q_dist.get()
+            if cv_ctr and cv_dist: 
+                self.change_pixmap_signal.emit(cv_ctr, cv_dist)
+        
+    def stop(self):
+        """Sets run flag to False and waits for thread to finish"""
+        self._run_flag = False
+        self.wait()
+
+class ShowCam(QWidget):
+    def __init__(self):
+        super(ShowCam, self).__init__()
+        self.setWindowTitle("DFM AI demo camera")
+        self.disply_width = 640
+        self.display_height = 480
+        # create the label that holds the image
+        self.image_ctr = QLabel(self)
+        self.image_dist = QLabel(self)
+        self.image_ctr.resize(self.disply_width, self.display_height)
+        self.image_dist.resize(self.disply_width, self.display_height)
+
+        # create a vertical box layout and add the two labels
+        vbox = QVBoxLayout()
+        vbox.addWidget(self.image_ctr)
+        vbox.addWidget(self.image_dist)
+        # set the vbox layout as the widgets layout
+        self.setLayout(vbox)
+
+        # create the video capture thread
+        self.thread = VideoThread()
+        # connect its signal to the update_image slot
+        self.thread.change_pixmap_signal.connect(self.update_image)
+        # start the thread
+        self.thread.start()
+
+    def closeEvent(self, event):
+        self.thread.stop()
+        event.accept()
+
+    @pyqtSlot(np.ndarray, np.ndarray)
+    def update_image(self, cv_ctr, cv_dist):
+        """Updates the image_label with a new opencv image"""
+        qt_ctr = self.convert_cv_qt(cv_ctr)
+        qt_dist = self.convert_cv_qt(cv_dist)
+        self.image_ctr.setPixmap(qt_ctr)
+        self.image_dist.setPixmap(qt_dist)
+
+    
+    def convert_cv_qt(self, cv_img):
+        """Convert from an opencv image to QPixmap"""
+        rgb_image = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
+        h, w, ch = rgb_image.shape
+        bytes_per_line = ch * w
+        convert_to_Qt_format = QtGui.QImage(rgb_image.data, w, h, bytes_per_line, QtGui.QImage.Format_RGB888)
+        p = convert_to_Qt_format.scaled(self.disply_width, self.display_height, Qt.KeepAspectRatio)
+        return QPixmap.fromImage(p)
 
 class Dialog(QDialog):
     NumGridRows = 3
@@ -135,20 +205,9 @@ class Dialog(QDialog):
             self.input_Model, self.input_Cam, self.input_Limit, two_points, self.q_ctr, self.q_dist,))
         self.p.daemon = True
         self.p.start()
-        #self.ai = AImodel_tpu(self.input_Model, self.input_Cam, self.input_Limit, two_points)
-        # self.ai.start()
-        
-        while True:
-            f_ctr = self.q_ctr.get()
-            f_dist = self.q_dist.get()
-            
-            if f_ctr or f_dist:
-                cv2.imshow("Frame counter", f_ctr)
-                cv2.imshow("Frame distance", f_dist)
-                cv2.waitKey(1)
-            else:
-                break
 
+        self.a = ShowCam()
+        self.a.show()
 
     def abortModel(self):
         print('stopping..')
@@ -157,15 +216,10 @@ class Dialog(QDialog):
             self.p.terminate()
             self.p.join()
             time.sleep(0.5)
-            # for proc in psutil.process_iter():
-            # # check whether the process name matches
-            # # print(proc.name())
-            # if any(procstr in proc.name() for procstr in\
-            #     ['Adobe', 'CCXProcess', 'CoreSync', 'Creative Cloud']):
-            #     print(f'Killing {proc.name()}')
-            #     proc.kill()
+
             self.buttonBox.button(QDialogButtonBox.Ok).setEnabled(True)
 
+        self.a.close()
         self.restart()
 
     def restart(self):
