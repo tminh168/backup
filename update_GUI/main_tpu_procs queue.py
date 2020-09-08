@@ -10,7 +10,7 @@ from tpu_model import *
 from track_distance import *
 
 
-def AImodel_tpu(input_model, input_cam, input_lim, input_pts):
+def AImodel_tpu(input_model, input_cam, input_lim, input_pts, q_ctr, q_dist):
 
     cam_78 = 'rtsp://192.168.200.78:556/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp?real_stream'
     cam_81 = 'rtsp://192.168.200.81:554/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp?real_stream'
@@ -101,9 +101,11 @@ def AImodel_tpu(input_model, input_cam, input_lim, input_pts):
             cv2.putText(frame_dist, text, (10, H - ((i * 20) + 20)),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
 
-        cv2.imshow("Frame counter", frame_ctr)
-        cv2.imshow("Frame distance", frame_dist)
-        cv2.waitKey(1)
+        q_ctr.put(frame_ctr)
+        q_dist.put(frame_dist)
+        #cv2.imshow("Frame counter", frame_ctr)
+        #cv2.imshow("Frame distance", frame_dist)
+        #cv2.waitKey(1)
 
     cv2.destroyAllWindows()
     fvs.stop()
