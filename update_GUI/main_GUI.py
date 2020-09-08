@@ -7,7 +7,8 @@ import cv2
 import imutils
 import numpy as np
 import time
-from main_tpu_demo import AImodel_tpu
+from main_tpu_procs import AImodel_tpu
+from multiprocessing import Process
 
 class Dialog(QDialog):
     NumGridRows = 3
@@ -29,7 +30,7 @@ class Dialog(QDialog):
         #self.resize(375, 150)
         self.setGeometry(200, 200, 800, 600)
 
-        self.ai = None
+        self.p = None
         self.setWindowTitle("DFM AI demo option")
 
     def createFormGroupBox(self):
@@ -126,15 +127,26 @@ class Dialog(QDialog):
         fvs.release()
         two_points = mouse_pts
 
-        self.ai = AImodel_tpu(self.input_Model, self.input_Cam, self.input_Limit, two_points)
-        self.ai.start()
-        time.sleep(0.5)
+        self.p = Process(target=AImodel_tpu, args=(self.input_Model, self.input_Cam, self.input_Limit, two_points,))
+        self.p.start()
+        #self.ai = AImodel_tpu(self.input_Model, self.input_Cam, self.input_Limit, two_points)
+        #self.ai.start()
+        self.p.join()
 
         
     def abortModel(self):
         print('stopping..')
-        if self.ai:
-            self.ai.terminate()
+        if self.p:
+            self.p.terminate()
+            self.p.join()
+            time.sleep(0.5)
+            # for proc in psutil.process_iter():
+            # # check whether the process name matches
+            # # print(proc.name())
+            # if any(procstr in proc.name() for procstr in\
+            #     ['Adobe', 'CCXProcess', 'CoreSync', 'Creative Cloud']):
+            #     print(f'Killing {proc.name()}')
+            #     proc.kill()
             self.buttonBox.button(QDialogButtonBox.Ok).setEnabled(True)
 
         self.restart()
