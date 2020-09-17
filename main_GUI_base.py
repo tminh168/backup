@@ -7,7 +7,7 @@ import cv2
 import imutils
 import numpy as np
 import time
-from main_tpu_procs import AImodel_tpu
+from main_tpu_test import AImodel_tpu
 from multiprocessing import Process
 
 
@@ -125,8 +125,8 @@ class Dialog(QDialog):
         fvs.release()
         two_points = mouse_pts
 
-        self.p = Process(target=AImodel_tpu, args=(
-            self.input_Model, "15fps.mp4", self.input_Limit, two_points,))
+        self.p = AImodel_tpu(self.input_Model, "15fps.mp4", self.input_Limit, two_points)
+
         self.p.start()
         #self.p.join()
 
@@ -135,8 +135,8 @@ class Dialog(QDialog):
         print('stopping..')
 
         if self.p:
-            self.p.terminate()
-            self.p.join()
+            self.p.shutdown()
+            
             self.buttonBox.button(QDialogButtonBox.Ok).setEnabled(True)
 
         self.restart()
