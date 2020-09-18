@@ -140,14 +140,17 @@ class Dialog(QDialog):
         self.t.start()
 
     def showCam(self, q_ctr, q_dist):
+        cv2.namedWindow('People counting', cv2.WINDOW_AUTOSIZE)
+        cv2.namedWindow('People distancing', cv2.WINDOW_AUTOSIZE)
+        #cv2.resizeWindow('People counting', (new_width, new_height))
         while not self.show_flag.is_set():
             frame_ctr = q_ctr.get()
             frame_dist = q_dist.get()
             if frame_ctr is None or frame_dist is None:
                 continue
 
-            cv2.imshow("People counting", frame_ctr)
             cv2.imshow("People distancing", frame_dist)
+            cv2.imshow("People counting", frame_ctr)
             cv2.waitKey(10)
             
         return
