@@ -1,5 +1,5 @@
 from PyQt5 import QtGui
-from PyQt5.QtWidgets import (QApplication, QWidget, QDialog, QGroupBox, QComboBox, 
+from PyQt5.QtWidgets import (QApplication, QWidget, QDialog, QGroupBox, QComboBox,
                              QDialogButtonBox, QFormLayout, QLabel, QLineEdit, QInputDialog, QPushButton, QVBoxLayout)
 from PyQt5.QtCore import pyqtSignal, pyqtSlot, Qt
 import sys
@@ -7,7 +7,7 @@ import cv2
 import imutils
 import numpy as np
 import time
-from main_tpu_test import AImodel_tpu
+from main_tpu_procs import AImodel_tpu
 from multiprocessing import Process
 
 
@@ -17,6 +17,7 @@ class Dialog(QDialog):
         super(Dialog, self).__init__()
         self.createFormGroupBox()
 
+        global w_width, w_height
         self.buttonBox = QDialogButtonBox(
             QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         self.buttonBox.accepted.connect(self.runModel)
@@ -46,7 +47,7 @@ class Dialog(QDialog):
         self.optModel.currentIndexChanged.connect(self.getModel)
         layout.addRow(self.textModel, self.optModel)
 
-        list_Cam = ["192.168.200.81", "192.168.200.82", "Both camera"]
+        list_Cam = ["192.168.200.81", "192.168.200.82"]
         self.textCam = QLabel('Choose camera IP:')
         self.optCam = QComboBox()
         self.optCam.addItems(list_Cam)
@@ -100,6 +101,7 @@ class Dialog(QDialog):
                 print(mouse_pts)
 
         cv2.namedWindow("Click to set threshold distance")
+        cv2.moveWindow("Click to set threshold distance", int(w_width / 2), int(w_height / 2))
         cv2.setMouseCallback(
             "Click to set threshold distance", get_mouse_points)
 
@@ -125,18 +127,19 @@ class Dialog(QDialog):
         fvs.release()
         two_points = mouse_pts
 
-        self.p = AImodel_tpu(self.input_Model, "15fps.mp4", self.input_Limit, two_points)
+        self.p = Process(target=AImodel_tpu, args=(
+            self.input_Model, "15fps.mp4", self.input_Limit, two_points, w_width, w_height,))
 
         self.p.start()
-        #self.p.join()
-
+        self.p.join()
 
     def abortModel(self):
         print('stopping..')
 
         if self.p:
-            self.p.shutdown()
-            
+            self.p.terminate()
+            self.p.join()
+
             self.buttonBox.button(QDialogButtonBox.Ok).setEnabled(True)
 
         self.restart()
@@ -153,7 +156,10 @@ class Dialog(QDialog):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    res = app.desktop().screenGeometry()
+    w_width = res.width()
+    w_height = res.height()
     dialog = Dialog()
     dialog.show()
-    
+
     sys.exit(app.exec_())

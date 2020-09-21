@@ -10,17 +10,19 @@ from tpu_model import *
 from track_distance import *
 
 
-def AImodel_tpu(input_model, input_cam, input_lim, input_pts):
+def AImodel_tpu(input_model, input_cam, input_lim, input_pts, w_width, w_height):
 
     cam_81 = 'rtsp://192.168.200.81:554/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp?real_stream'
     cam_82 = 'rtsp://192.168.200.82:554/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp?real_stream'
     model_People = 'detection_toco_edgetpu.tflite'
+    model_1 = 'detection_1_edgetpu.tflite'
+    model_2 = 'detection_2_edgetpu.tflite'
     model_SSD = 'mobilenet_ssd_v2_edgetpu.tflite'
 
     if input_model == "SSD Mobilenet v2 detection":
         labels = load_labels('coco_labels.txt')
         DNN = model_tpu(model_SSD, labels)
-    elif input_model == "SSD Custom People detection":
+    elif input_model == "SSD Custom People detection":  
         labels = load_labels('people_label.txt')
         DNN = model_tpu(model_People, labels)
 
@@ -29,7 +31,7 @@ def AImodel_tpu(input_model, input_cam, input_lim, input_pts):
     # elif input_cam == "192.168.200.82":
     #     fvs = CameraVideoStream(cam_82).start()
 
-    fvs = cv2.VideoCapture(input_cam)
+    fvs = cv2.VideoCapture("15fps.mp4")
     limit = int(input_lim)
 
     # Initialize necessary variables
@@ -44,6 +46,9 @@ def AImodel_tpu(input_model, input_cam, input_lim, input_pts):
         + (input_pts[0][1] - input_pts[1][1]) ** 2
     )
 
+    cv2.namedWindow("Frame distance")
+    #cv2.namedWindow("Frame counter")
+    cv2.moveWindow("Frame counter", w_width, w_height)
     # Process each frame, until end of video
     while True:
 
@@ -102,8 +107,9 @@ def AImodel_tpu(input_model, input_cam, input_lim, input_pts):
             cv2.putText(frame_dist, text, (10, H - ((i * 20) + 20)),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
 
+        #cv2.imshow("Frame distance", frame_dist)
         cv2.imshow("Frame counter", frame_ctr)
-        cv2.imshow("Frame distance", frame_dist)
+        cv2.moveWindow("Frame counter", int(w_width / 2), int(w_height / 2))
         cv2.waitKey(1)
 
     cv2.destroyAllWindows()
