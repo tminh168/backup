@@ -10,13 +10,13 @@ from tpu_model import *
 from track_distance import *
 
 
-def AImodel_tpu(input_model, input_cam, input_lim, input_pts, w_width, w_height):
+def AImodel_tpu(input_model, input_cam, input_lim, input_pts):
 
     cam_81 = 'rtsp://192.168.200.81:554/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp?real_stream'
     cam_82 = 'rtsp://192.168.200.82:554/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp?real_stream'
     model_People = 'detection_toco_edgetpu.tflite'
-    model_1 = 'detection_1_edgetpu.tflite'
-    model_2 = 'detection_2_edgetpu.tflite'
+    # model_1 = 'detection_1_edgetpu.tflite'
+    # model_2 = 'detection_2_edgetpu.tflite'
     model_SSD = 'mobilenet_ssd_v2_edgetpu.tflite'
 
     if input_model == "SSD Mobilenet v2 detection":
@@ -26,12 +26,11 @@ def AImodel_tpu(input_model, input_cam, input_lim, input_pts, w_width, w_height)
         labels = load_labels('people_label.txt')
         DNN = model_tpu(model_People, labels)
 
-    # if input_cam == "192.168.200.81":
-    #     fvs = CameraVideoStream(cam_81).start()
-    # elif input_cam == "192.168.200.82":
-    #     fvs = CameraVideoStream(cam_82).start()
+    if input_cam == "192.168.200.81":
+        fvs = CameraVideoStream(cam_81).start()
+    elif input_cam == "192.168.200.82":
+        fvs = CameraVideoStream(cam_82).start()
 
-    fvs = cv2.VideoCapture("15fps.mp4")
     limit = int(input_lim)
 
     # Initialize necessary variables
@@ -40,21 +39,25 @@ def AImodel_tpu(input_model, input_cam, input_lim, input_pts, w_width, w_height)
     totalCount = 0
     countedID = 0
     ROI = 350
-    total_six_feet_violations = 0
-    d_thresh = np.sqrt(
-        (input_pts[0][0] - input_pts[1][0]) ** 2
-        + (input_pts[0][1] - input_pts[1][1]) ** 2
-    )
-
-    cv2.namedWindow("Frame distance")
-    #cv2.namedWindow("Frame counter")
-    cv2.moveWindow("Frame counter", int(w_width / 2), int(w_height / 2))
+    
+    if input_pts:
+        total_six_feet_violations = 0
+        d_thresh = np.sqrt(
+            (input_pts[0][0] - input_pts[1][0]) ** 2
+            + (input_pts[0][1] - input_pts[1][1]) ** 2
+        )
+        cv2.namedWindow("Social distancing")
+        cv2.namedWindow("Passenger counter")
+    else:
+        cv2.namedWindow("Passenger counter", cv2.WND_PROP_FULLSCREEN)
+        cv2.setWindowProperty("Passenger counter", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+    
     # Process each frame, until end of video
     while True:
 
         direction_str = "..."
         distance = "..."
-        ret, frame = fvs.read()
+        frame = fvs.read()
 
         if frame is None:
             continue
@@ -71,12 +74,6 @@ def AImodel_tpu(input_model, input_cam, input_lim, input_pts, w_width, w_height)
         frame_ctr, countedID, totalCount, direction_str, ct, trackableObjects = append_objs_counter(
             frame_ctr, countedID, pedestrian_boxes, ROI, ct, trackableObjects, totalCount)
 
-        frame_dist, dist_violation = append_objs_distance(
-            frame, pedestrian_boxes, d_thresh)
-        te_dtc = time.time()
-        dtc_rate = te_dtc - t_dtc
-        print('Detection: {}'.format(dtc_rate))
-
         info_ctr = [
             ("Direction", direction_str),
             ("Count", totalCount),
@@ -85,32 +82,41 @@ def AImodel_tpu(input_model, input_cam, input_lim, input_pts, w_width, w_height)
             text = "{}: {}".format(k, v)
             cv2.putText(frame_ctr, text, (10, H - ((i * 20) + 20)),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
-
-        dist_count = []
-        if len(dist_violation) > 0:
-            for i in range(len(dist_violation)):
-                dist_m = "{:.2f}".format(
-                    dist_violation[i] / d_thresh * limit)
-                total_six_feet_violations += 1
-                dist_count.append(dist_m)
-        if len(dist_count) > 0:
-            distance = ""
-            for i in range(len(dist_count)):
-                distance = distance + str(dist_count[i]) + " "
-
-        info_dist = [
-            ("Distance(m)", distance),
-            ("Violation", total_six_feet_violations),
-        ]
-        for (i, (k, v)) in enumerate(info_dist):
-            text = "{}: {}".format(k, v)
-            cv2.putText(frame_dist, text, (10, H - ((i * 20) + 20)),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
-
-        #cv2.imshow("Frame distance", frame_dist)
-        cv2.imshow("Frame counter", frame_ctr)
+        
+        cv2.imshow("Passenger counter", frame_ctr)
         cv2.waitKey(1)
+        te_dtc = time.time()
+        print('Counting: {}'.format(te_dtc - t_dtc))
 
+        if input_pts:
+            frame_dist, dist_violation = append_objs_distance(
+                frame, pedestrian_boxes, d_thresh)
+                
+            dist_count = []
+            if len(dist_violation) > 0:
+                for i in range(len(dist_violation)):
+                    dist_m = "{:.2f}".format(
+                        dist_violation[i] / d_thresh * limit)
+                    total_six_feet_violations += 1
+                    dist_count.append(dist_m)
+            if len(dist_count) > 0:
+                distance = ""
+                for i in range(len(dist_count)):
+                    distance = distance + str(dist_count[i]) + " "
+
+            info_dist = [
+                ("Distance(m)", distance),
+                ("Violation", total_six_feet_violations),
+            ]
+            for (i, (k, v)) in enumerate(info_dist):
+                text = "{}: {}".format(k, v)
+                cv2.putText(frame_dist, text, (10, H - ((i * 20) + 20)),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+            cv2.imshow("Social distancing", frame_dist)
+            cv2.waitKey(1)
+            te_dtc = time.time()
+            print('Distancing: {}'.format(te_dtc - t_dtc))
+        
     cv2.destroyAllWindows()
-    fvs.release()
+    fvs.stop()
     return

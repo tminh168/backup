@@ -7,10 +7,9 @@ import cv2
 import imutils
 import numpy as np
 import time
-import subprocess
+from cameravideostream import CameraVideoStream
 from main_tpu_procs import AImodel_tpu
 from multiprocessing import Process
-
 
 
 class Dialog(QDialog):
@@ -18,11 +17,6 @@ class Dialog(QDialog):
     def __init__(self):
         super(Dialog, self).__init__()
         self.createFormGroupBox()
-
-        output = subprocess.Popen('xrandr | grep "\*" | cut -d" " -f4',shell=True, stdout=subprocess.PIPE).communicate()[0]
-        resolution = output.split()[0].split(b'x')
-        self.w_width = int(resolution[0])
-        self.w_height = int(resolution[1])
 
         self.buttonBox = QDialogButtonBox(
             QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
@@ -53,6 +47,15 @@ class Dialog(QDialog):
         self.optModel.currentIndexChanged.connect(self.getModel)
         layout.addRow(self.textModel, self.optModel)
 
+        list_Mode = ["Passenger counter", "Social distancing"]
+        self.textMode = QLabel('Choose AI mode:')
+        self.optMode = QComboBox()
+        self.optMode.addItems(list_Mode)
+        self.optMode.setCurrentIndex(list_Mode.index('Passenger counter'))
+        self.input_Mode = str(self.optMode.currentText())
+        self.optMode.currentIndexChanged.connect(self.getMode)
+        layout.addRow(self.textMode, self.optMode)
+
         list_Cam = ["192.168.200.81", "192.168.200.82"]
         self.textCam = QLabel('Choose camera IP:')
         self.optCam = QComboBox()
@@ -78,6 +81,11 @@ class Dialog(QDialog):
         self.input_Model = str(self.optModel.currentText())
         print(self.input_Model)
 
+    def getMode(self, i):
+
+        self.input_Mode = str(self.optMode.currentText())
+        print(self.input_Mode)
+
     def getCam(self, i):
 
         self.input_Cam = self.optCam.currentText()
@@ -92,49 +100,53 @@ class Dialog(QDialog):
         print('running..')
         self.buttonBox.button(QDialogButtonBox.Ok).setDisabled(True)
 
-        mouse_pts = []
+        if self.input_Mode == "Social distancing":
+            mouse_pts = []
 
-        def get_mouse_points(event, x, y, flags, param):
-            # Used to mark 4 points on the frame zero of the video that will be warped
-            # Used to mark 2 points on the frame zero of the video that are 6 feet away
-            global mouseX, mouseY
-            if event == cv2.EVENT_LBUTTONDOWN:
-                mouseX, mouseY = x, y
-                # if "mouse_pts" not in globals():
-                #    mouse_pts = []
-                mouse_pts.append((x, y))
-                print("Point detected")
-                print(mouse_pts)
+            def get_mouse_points(event, x, y, flags, param):
+                # Used to mark 4 points on the frame zero of the video that will be warped
+                # Used to mark 2 points on the frame zero of the video that are 6 feet away
+                global mouseX, mouseY
+                if event == cv2.EVENT_LBUTTONDOWN:
+                    mouseX, mouseY = x, y
+                    # if "mouse_pts" not in globals():
+                    #    mouse_pts = []
+                    mouse_pts.append((x, y))
+                    print("Point detected")
+                    print(mouse_pts)
 
-        cv2.namedWindow("Click to set threshold distance")
-        cv2.moveWindow("Click to set threshold distance", int(self.w_width / 2), int(self.w_height / 2))
-        cv2.setMouseCallback(
-            "Click to set threshold distance", get_mouse_points)
+            cv2.namedWindow("Click to set threshold distance")
+            cv2.setMouseCallback(
+                "Click to set threshold distance", get_mouse_points)
 
-        cam_81 = 'rtsp://192.168.200.81:554/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp?real_stream'
-        cam_82 = 'rtsp://192.168.200.82:554/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp?real_stream'
+            cam_81 = 'rtsp://192.168.200.81:554/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp?real_stream'
+            cam_82 = 'rtsp://192.168.200.82:554/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp?real_stream'
 
-        if self.input_Cam == "192.168.200.81":
-            input_cam = cam_81
-        elif self.input_Cam == "192.168.200.82":
-            input_cam = cam_82
-        fvs = cv2.VideoCapture("15fps.mp4")
-        ret, frame = fvs.read()
-        frame = imutils.resize(frame, width=640, height=480)
+            if self.input_Cam == "192.168.200.81":
+                input_cam = cam_81
+            elif self.input_Cam == "192.168.200.82":
+                input_cam = cam_82
+            fvs = cv2.VideoCapture(input_cam)
 
-        while ret:
-            image = frame
-            cv2.imshow("Click to set threshold distance", image)
-            cv2.waitKey(1)
-            if len(mouse_pts) == 3:
-                cv2.destroyWindow("Click to set threshold distance")
-                break
+            ret, frame = fvs.read()
+            frame = imutils.resize(frame, width=640, height=480)
 
-        fvs.release()
-        two_points = mouse_pts
+            while ret:
+                image = frame
+                cv2.imshow("Click to set threshold distance", image)
+                cv2.waitKey(1)
+                if len(mouse_pts) == 3:
+                    cv2.destroyWindow("Click to set threshold distance")
+                    break
+
+            fvs.release()
+            two_points = mouse_pts
+            
+        else:
+            two_points = None
 
         self.p = Process(target=AImodel_tpu, args=(
-            self.input_Model, "15fps.mp4", self.input_Limit, two_points, self.w_width, self.w_height,))
+            self.input_Model, self.input_Cam, self.input_Limit, two_points,))
 
         self.p.start()
         self.p.join()
