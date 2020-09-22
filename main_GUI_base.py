@@ -7,8 +7,10 @@ import cv2
 import imutils
 import numpy as np
 import time
+import subprocess
 from main_tpu_procs import AImodel_tpu
 from multiprocessing import Process
+
 
 
 class Dialog(QDialog):
@@ -17,7 +19,11 @@ class Dialog(QDialog):
         super(Dialog, self).__init__()
         self.createFormGroupBox()
 
-        global w_width, w_height
+        output = subprocess.Popen('xrandr | grep "\*" | cut -d" " -f4',shell=True, stdout=subprocess.PIPE).communicate()[0]
+        resolution = output.split()[0].split(b'x')
+        self.w_width = int(resolution[0])
+        self.w_height = int(resolution[1])
+
         self.buttonBox = QDialogButtonBox(
             QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         self.buttonBox.accepted.connect(self.runModel)
@@ -28,7 +34,7 @@ class Dialog(QDialog):
         mainLayout.addWidget(self.buttonBox)
         self.setLayout(mainLayout)
         #self.resize(375, 150)
-        self.setGeometry(200, 200, 480, 320)
+        self.setGeometry(0, 0, 480, 320)
 
         self.p = None
         self.setWindowTitle("DFM AI demo option")
@@ -101,7 +107,7 @@ class Dialog(QDialog):
                 print(mouse_pts)
 
         cv2.namedWindow("Click to set threshold distance")
-        cv2.moveWindow("Click to set threshold distance", int(w_width / 2), int(w_height / 2))
+        cv2.moveWindow("Click to set threshold distance", int(self.w_width / 2), int(self.w_height / 2))
         cv2.setMouseCallback(
             "Click to set threshold distance", get_mouse_points)
 
@@ -128,7 +134,7 @@ class Dialog(QDialog):
         two_points = mouse_pts
 
         self.p = Process(target=AImodel_tpu, args=(
-            self.input_Model, "15fps.mp4", self.input_Limit, two_points, w_width, w_height,))
+            self.input_Model, "15fps.mp4", self.input_Limit, two_points, self.w_width, self.w_height,))
 
         self.p.start()
         self.p.join()
@@ -156,9 +162,6 @@ class Dialog(QDialog):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    res = app.desktop().screenGeometry()
-    w_width = res.width()
-    w_height = res.height()
     dialog = Dialog()
     dialog.show()
 

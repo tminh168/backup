@@ -48,7 +48,7 @@ def AImodel_tpu(input_model, input_cam, input_lim, input_pts, w_width, w_height)
 
     cv2.namedWindow("Frame distance")
     #cv2.namedWindow("Frame counter")
-    cv2.moveWindow("Frame counter", w_width, w_height)
+    cv2.moveWindow("Frame counter", int(w_width / 2), int(w_height / 2))
     # Process each frame, until end of video
     while True:
 
@@ -109,9 +109,8 @@ def AImodel_tpu(input_model, input_cam, input_lim, input_pts, w_width, w_height)
 
         #cv2.imshow("Frame distance", frame_dist)
         cv2.imshow("Frame counter", frame_ctr)
-        cv2.moveWindow("Frame counter", int(w_width / 2), int(w_height / 2))
         cv2.waitKey(1)
 
     cv2.destroyAllWindows()
-    fvs.stop()
+    fvs.release()
     return
