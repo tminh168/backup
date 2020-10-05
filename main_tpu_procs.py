@@ -10,13 +10,11 @@ from tpu_model import *
 from track_distance import *
 
 
-def AImodel_tpu(input_model, input_cam, input_lim, input_pts):
+def AImodel_tpu(input_model, input_cam, input_lim, input_roi, input_pts):
 
     cam_81 = 'rtsp://192.168.200.81:554/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp?real_stream'
     cam_82 = 'rtsp://192.168.200.82:554/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp?real_stream'
     model_People = 'detection_toco_edgetpu.tflite'
-    # model_1 = 'detection_1_edgetpu.tflite'
-    # model_2 = 'detection_2_edgetpu.tflite'
     model_SSD = 'mobilenet_ssd_v2_edgetpu.tflite'
 
     if input_model == "SSD Mobilenet v2 detection":
@@ -38,7 +36,7 @@ def AImodel_tpu(input_model, input_cam, input_lim, input_pts):
     trackableObjects = dict()
     totalCount = 0
     countedID = 0
-    ROI = 350
+    ROI = round(640 * input_roi / 100)
     
     if input_pts:
         total_six_feet_violations = 0

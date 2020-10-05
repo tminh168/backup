@@ -1,5 +1,5 @@
 from PyQt5 import QtGui
-from PyQt5.QtWidgets import (QApplication, QWidget, QDialog, QGroupBox, QComboBox,
+from PyQt5.QtWidgets import (QApplication, QWidget, QDialog, QGroupBox, QComboBox, QSlider, 
                              QDialogButtonBox, QFormLayout, QLabel, QLineEdit, QInputDialog, QPushButton, QVBoxLayout)
 from PyQt5.QtCore import pyqtSignal, pyqtSlot, Qt
 import sys
@@ -74,6 +74,17 @@ class Dialog(QDialog):
         self.optLim.currentIndexChanged.connect(self.getLim)
         layout.addRow(self.textLim, self.optLim)
 
+        self.textLine = QLabel('Choose line position(%):')
+        self.sldLine = QSlider(Qt.Horizontal)
+        self.sldLine.setMinimum(30)
+        self.sldLine.setMaximum(70)
+        self.sldLine.setValue(50)
+        self.input_Line = self.sldLine.value()
+        self.sldLine.setTickPosition(QSlider.TicksBelow)
+        self.sldLine.setTickInterval(5)
+        self.sldLine.valueChanged.connect(self.valuechange)
+        layout.addRow(self.textLine, self.sldLine)    
+
         self.formGroupBox.setLayout(layout)
 
     def getModel(self, i):
@@ -95,6 +106,11 @@ class Dialog(QDialog):
 
         self.input_Limit = self.optLim.currentText()
         print(self.input_Limit)
+
+    def getLine(self):
+
+        self.input_Line = self.sldLine.value()
+        print(self.input_Line)
 
     def runModel(self):
         print('running..')
@@ -146,7 +162,7 @@ class Dialog(QDialog):
             two_points = None
 
         self.p = Process(target=AImodel_tpu, args=(
-            self.input_Model, self.input_Cam, self.input_Limit, two_points,))
+            self.input_Model, self.input_Cam, self.input_Limit, self.input_Line, two_points,))
 
         self.p.start()
         self.p.join()
