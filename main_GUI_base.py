@@ -1,5 +1,5 @@
 from PyQt5 import QtGui
-from PyQt5.QtWidgets import (QApplication, QWidget, QDialog, QGroupBox, QComboBox, QSlider, 
+from PyQt5.QtWidgets import (QApplication, QWidget, QDialog, QGroupBox, QComboBox, QSlider,
                              QDialogButtonBox, QFormLayout, QLabel, QLineEdit, QInputDialog, QPushButton, QVBoxLayout)
 from PyQt5.QtCore import pyqtSignal, pyqtSlot, Qt
 import sys
@@ -82,8 +82,26 @@ class Dialog(QDialog):
         self.input_Line = self.sldLine.value()
         self.sldLine.setTickPosition(QSlider.TicksBelow)
         self.sldLine.setTickInterval(5)
-        self.sldLine.valueChanged.connect(self.valuechange)
-        layout.addRow(self.textLine, self.sldLine)    
+        self.sldLine.valueChanged.connect(self.getLine)
+        layout.addRow(self.textLine, self.sldLine)
+
+        list_Left = ["Out", "In"]
+        self.textLeft = QLabel('Left direction:')
+        self.optLeft = QComboBox()
+        self.optLeft.addItems(list_Left)
+        self.optLeft.setCurrentIndex(list_Left.index("Out"))
+        self.input_Left = str(self.optLeft.currentText())
+        self.optLeft.currentIndexChanged.connect(self.getLeft)
+        layout.addRow(self.textLeft, self.optLeft)
+
+        list_Right = ["In", "Out"]
+        self.textRight = QLabel('Right direction:')
+        self.optRight = QComboBox()
+        self.optRight.addItems(list_Right)
+        self.optRight.setCurrentIndex(list_Right.index("In"))
+        self.input_Right = str(self.optRight.currentText())
+        self.optRight.currentIndexChanged.connect(self.getRight)
+        layout.addRow(self.textRight, self.optRight)
 
         self.formGroupBox.setLayout(layout)
 
@@ -112,30 +130,35 @@ class Dialog(QDialog):
         self.input_Line = self.sldLine.value()
         print(self.input_Line)
 
+    def getLeft(self):
+
+        self.input_Left = str(self.optLeft.currentText())
+        print(self.input_Left)
+
+    def getRight(self):
+
+        self.input_Right = str(self.optRight.currentText())
+        print(self.input_Right)
+
     def runModel(self):
         print('running..')
         self.buttonBox.button(QDialogButtonBox.Ok).setDisabled(True)
+        cv2.namedWindow("Click to set threshold distance")
 
         if self.input_Mode == "Social distancing":
             mouse_pts = []
 
             def get_mouse_points(event, x, y, flags, param):
-                # Used to mark 4 points on the frame zero of the video that will be warped
-                # Used to mark 2 points on the frame zero of the video that are 6 feet away
-                global mouseX, mouseY
                 if event == cv2.EVENT_LBUTTONDOWN:
-                    mouseX, mouseY = x, y
-                    # if "mouse_pts" not in globals():
-                    #    mouse_pts = []
+
                     mouse_pts.append((x, y))
                     print("Point detected")
                     print(mouse_pts)
 
-            cv2.namedWindow("Click to set threshold distance")
             cv2.setMouseCallback(
                 "Click to set threshold distance", get_mouse_points)
 
-            cam_81 = 'rtsp://192.168.200.81:554/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp?real_stream'
+            cam_81 = 'rtsp://192.168.200.80:555/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp?real_stream'
             cam_82 = 'rtsp://192.168.200.82:554/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp?real_stream'
 
             if self.input_Cam == "192.168.200.81":
@@ -157,12 +180,14 @@ class Dialog(QDialog):
 
             fvs.release()
             two_points = mouse_pts
-            
+
         else:
+            
             two_points = None
+            cv2.destroyWindow("Click to set threshold distance")
 
         self.p = Process(target=AImodel_tpu, args=(
-            self.input_Model, self.input_Cam, self.input_Limit, self.input_Line, two_points,))
+            self.input_Model, self.input_Cam, self.input_Limit, self.input_Line, self.input_Left, self.input_Right, two_points,))
 
         self.p.start()
         self.p.join()

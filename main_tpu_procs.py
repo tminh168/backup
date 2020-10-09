@@ -7,12 +7,12 @@ import numpy as np
 from cameravideostream import CameraVideoStream
 from pyimagesearch.centroidtracker import CentroidTracker
 from tpu_model import *
-from track_distance import *
+from track_distance_gui import *
 
 
-def AImodel_tpu(input_model, input_cam, input_lim, input_roi, input_pts):
+def AImodel_tpu(input_model, input_cam, input_lim, input_roi, input_left, input_right, input_pts):
 
-    cam_81 = 'rtsp://192.168.200.81:554/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp?real_stream'
+    cam_81 = 'rtsp://192.168.200.80:555/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp?real_stream'
     cam_82 = 'rtsp://192.168.200.82:554/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp?real_stream'
     model_People = 'detection_toco_edgetpu.tflite'
     model_SSD = 'mobilenet_ssd_v2_edgetpu.tflite'
@@ -70,7 +70,7 @@ def AImodel_tpu(input_model, input_cam, input_lim, input_roi, input_pts):
         frame_ctr = cv2.line(frame, (ROI, 0),
                              (ROI, H), (0, 255, 255), 2)
         frame_ctr, countedID, totalCount, direction_str, ct, trackableObjects = append_objs_counter(
-            frame_ctr, countedID, pedestrian_boxes, ROI, ct, trackableObjects, totalCount)
+            frame_ctr, countedID, pedestrian_boxes, ROI, input_left, input_right, ct, trackableObjects, totalCount)
 
         info_ctr = [
             ("Direction", direction_str),
@@ -81,8 +81,6 @@ def AImodel_tpu(input_model, input_cam, input_lim, input_roi, input_pts):
             cv2.putText(frame_ctr, text, (10, H - ((i * 20) + 20)),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
         
-        cv2.imshow("Passenger counter", frame_ctr)
-        cv2.waitKey(1)
         te_dtc = time.time()
         print('Counting: {}'.format(te_dtc - t_dtc))
 
@@ -111,10 +109,12 @@ def AImodel_tpu(input_model, input_cam, input_lim, input_roi, input_pts):
                 cv2.putText(frame_dist, text, (10, H - ((i * 20) + 20)),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
             cv2.imshow("Social distancing", frame_dist)
-            cv2.waitKey(1)
+
             te_dtc = time.time()
             print('Distancing: {}'.format(te_dtc - t_dtc))
         
+        cv2.imshow("Passenger counter", frame_ctr)
+        cv2.waitKey(1)
+        
     cv2.destroyAllWindows()
     fvs.stop()
-    return
