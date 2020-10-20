@@ -9,6 +9,7 @@ import csv
 import calendar
 import requests
 import base64
+from frame_submit import FrameSubmit
 from datetime import datetime
 from queue import Queue
 from cameravideostream import CameraVideoStream
@@ -31,20 +32,12 @@ fvs1 = CameraVideoStream(cam_78).start()
 fvs2 = CameraVideoStream(cam_80).start()
 
 # initialize API parameters
-url = 'http://ai-camera.dfm-europe.com/api/v1/admin/public/uplink'
-q1 = Queue(maxsize=50)
-q2 = Queue(maxsize=50)
 
-with open('counter_1.csv', 'w', newline='') as file:
-    writer = csv.writer(file)
-    writer.writerow(["Count", "Time", "Direction", "Status"])
+FS1 = FrameSubmit('counter_1.csv').start()
+FS2 = FrameSubmit('counter_2.csv').start()
 
-with open('counter_2.csv', 'w', newline='') as file:
-    writer = csv.writer(file)
-    writer.writerow(["Count", "Time", "Direction", "Status"])
-
-ct1 = CentroidTracker(maxDisappeared=3, maxDistance=55)
-ct2 = CentroidTracker(maxDisappeared=3, maxDistance=55)
+ct1 = CentroidTracker(maxDisappeared=2, maxDistance=45)
+ct2 = CentroidTracker(maxDisappeared=2, maxDistance=45)
 trackableObjects1 = dict()
 trackableObjects2 = dict()
 totalCount1 = 0
@@ -59,7 +52,6 @@ while True:
 
     direction_str1 = "..."
     direction_str2 = "..."
-    dequeue = True
     frame1 = fvs1.read()
     frame2 = fvs2.read()
 
@@ -104,119 +96,11 @@ while True:
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
 
     if direction_str1 == "In" or direction_str1 == "Out":
-        current_time = calendar.timegm(time.gmtime())
-        status = "Success"
-        dequeue = False
-
-        with open('counter_1.csv', 'a', newline='') as file:
-            writer = csv.writer(file)
-            writer.writerow(
-                [totalCount1, current_time, direction_str1, status])
-
-        try:
-            # Convert captured image to JPG
-            ret, buffer = cv2.imencode('.jpg', frame_ctr1)
-            # Convert to base64 encoding and show start of data
-            jpg_as_text = base64.b64encode(buffer)
-            print(jpg_as_text)
-
-            data = {'image': jpg_as_text,
-                    'timestamp': current_time,
-                    'bus': 1,
-                    'shift': 1,
-                    'cam_no': 1,
-                    'direction': direction_str1,
-                    'count': totalCount1}
-            print(sys.getsizeof(data))
-            r = requests.post(url, data=data, verify=False)
-
-            # check API response
-            if r.status_code == 200:
-                print("Success")
-            else:
-                q1.put(data)
-
-        except ConnectionError as e:
-            print(e)
-            r = "No response. "
-            print(r + "Check internet connection. Detection frame on standby!")
-            q1.put(data)
+        FS1.q_push(frame_ctr1, totalCount1, direction_str1, 1)
 
     if direction_str2 == "In" or direction_str2 == "Out":
-        current_time = calendar.timegm(time.gmtime())
-        status = "Success"
-        dequeue = False
+        FS2.q_push(frame_ctr2, totalCount2, direction_str2, 2)
 
-        with open('counter_2.csv', 'a', newline='') as file:
-            writer = csv.writer(file)
-            writer.writerow(
-                [totalCount2, current_time, direction_str2, status])
-
-        try:
-            # Convert captured image to JPG
-            ret, buffer = cv2.imencode('.jpg', frame_ctr2)
-            # Convert to base64 encoding and show start of data
-            jpg_as_text = base64.b64encode(buffer)
-            print(jpg_as_text)
-
-            data = {'image': jpg_as_text,
-                    'timestamp': current_time,
-                    'bus': 1,
-                    'shift': 1,
-                    'cam_no': 2,
-                    'direction': direction_str2,
-                    'count': totalCount2}
-            print(sys.getsizeof(data))
-            r = requests.post(url, data=data, verify=False)
-
-            # check API response
-            if r.status_code == 200:
-                print("Success")
-            else:
-                q2.put(data)
-
-        except ConnectionError as e:
-            print(e)
-            r = "No response. "
-            print(r + "Check internet connection. Detection frame on standby!")
-            q2.put(data)
-
-    if dequeue:
-        if not q1.empty():
-            data = q1.get()
-            try:
-                r = requests.post(url, data=data, verify=False)
-
-                # check API response
-                if r.status_code == 200:
-                    print("Success")
-                else:
-                    q1.put(data)
-
-            except ConnectionError as e:
-                print(e)
-                r = "No response. "
-                print(
-                    r + "Check internet connection. Detection frame on standby!")
-                q1.put(data)
-
-        if not q2.empty():
-            data = q2.get()
-            try:
-                r = requests.post(url, data=data, verify=False)
-
-                # check API response
-                if r.status_code == 200:
-                    print("Success")
-                else:
-                    q2.put(data)
-
-            except ConnectionError as e:
-                print(e)
-                r = "No response. "
-                print(
-                    r + "Check internet connection. Detection frame on standby!")
-                q2.put(data)
 
     cv2.imshow("Front counter", frame_ctr1)
     cv2.imshow("Rear counter", frame_ctr2)
