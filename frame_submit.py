@@ -1,28 +1,18 @@
 # import the necessary packages
 from threading import Thread
-import sys
 import cv2
-import time
-import csv
-import calendar
 import requests
 import base64
-from datetime import datetime
 from queue import Queue
 from requests.exceptions import ConnectionError
 
 
 class FrameSubmit:
-    def __init__(self, file, queue_size=128):
+    def __init__(self, queue_size=128):
         # initialize parameters
         self.url = 'http://ai-camera.dfm-europe.com/api/v1/admin/public/uplink'
         self.q = Queue(maxsize=queue_size)
-        self.file = file
         self._run = True
-
-        with open(self.file, 'w', newline='') as csv_file:
-            writer = csv.writer(csv_file)
-            writer.writerow(["Count", "Time", "Direction", "Status"])
 
         self.thread = Thread(target=self.dequeue, args=())
         self.thread.daemon = True
@@ -59,14 +49,7 @@ class FrameSubmit:
         self._run = False
         self.thread.join()
 
-    def q_push(self, frame, totalCount, direction_str, cam_no):
-        current_time = calendar.timegm(time.gmtime())
-        status = "Success"
-
-        with open(self.file, 'a', newline='') as csv_file:
-            writer = csv.writer(csv_file)
-            writer.writerow(
-                [totalCount, current_time, direction_str, status])
+    def q_push(self, frame, current_time, totalCount, direction_str, cam_no):
 
         try:
             # Convert captured image to JPG

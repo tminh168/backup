@@ -17,7 +17,6 @@ from pyimagesearch.centroidtracker import CentroidTracker
 from tpu_model import *
 from track_distance import *
 
-
 cam_78 = 'rtsp://192.168.200.78:556/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp?real_stream'
 cam_80 = 'rtsp://192.168.200.80:555/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp?real_stream'
 model_1 = 'detection_1_edgetpu.tflite'
@@ -32,9 +31,7 @@ fvs1 = CameraVideoStream(cam_78).start()
 fvs2 = CameraVideoStream(cam_80).start()
 
 # initialize API parameters
-
-FS1 = FrameSubmit('counter_1.csv').start()
-FS2 = FrameSubmit('counter_2.csv').start()
+FS = FrameSubmit().start()
 
 ct1 = CentroidTracker(maxDisappeared=2, maxDistance=45)
 ct2 = CentroidTracker(maxDisappeared=2, maxDistance=45)
@@ -73,10 +70,6 @@ while True:
     frame_ctr2, countedID2, totalCount2, direction_str2, ct2, trackableObjects2 = append_objs_counter(
         frame_ctr2, countedID2, pedestrian_boxes2, ROI, ct2, trackableObjects2, totalCount2)
 
-    te_dtc = time.time()
-    dtc_rate = te_dtc - t_dtc
-    print('Detection: {}'.format(dtc_rate))
-
     info_ctr1 = [
         ("Direction", direction_str1),
         ("Count", totalCount1),
@@ -96,12 +89,17 @@ while True:
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
 
     if direction_str1 == "In" or direction_str1 == "Out":
-        FS1.q_push(frame_ctr1, totalCount1, direction_str1, 1)
+        current_time = calendar.timegm(time.gmtime())
+        FS.q_push(frame_ctr1, current_time, totalCount1, direction_str1, 1)
 
     if direction_str2 == "In" or direction_str2 == "Out":
-        FS2.q_push(frame_ctr2, totalCount2, direction_str2, 2)
-
+        current_time = calendar.timegm(time.gmtime())
+        FS.q_push(frame_ctr2, current_time, totalCount2, direction_str2, 2)
 
     cv2.imshow("Front counter", frame_ctr1)
     cv2.imshow("Rear counter", frame_ctr2)
     cv2.waitKey(1)
+
+    te_dtc = time.time()
+    dtc_rate = te_dtc - t_dtc
+    print('Detection: {}'.format(dtc_rate))
