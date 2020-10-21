@@ -90,11 +90,23 @@ while True:
 
     if direction_str1 == "In" or direction_str1 == "Out":
         current_time = calendar.timegm(time.gmtime())
-        FS.q_push(frame_ctr1, current_time, totalCount1, direction_str1, 1)
+
+        # Convert captured image to JPG
+        ret, buffer = cv2.imencode('.jpg', frame_ctr1)
+        # Convert to base64 encoding and show start of data
+        jpg_as_text = base64.b64encode(buffer)
+
+        FS.q_push(jpg_as_text, current_time, totalCount1, direction_str1, 1)
 
     if direction_str2 == "In" or direction_str2 == "Out":
         current_time = calendar.timegm(time.gmtime())
-        FS.q_push(frame_ctr2, current_time, totalCount2, direction_str2, 2)
+
+        # Convert captured image to JPG
+        ret, buffer = cv2.imencode('.jpg', frame_ctr2)
+        # Convert to base64 encoding and show start of data
+        jpg_as_text = base64.b64encode(buffer)
+
+        FS.q_push(jpg_as_text, current_time, totalCount2, direction_str2, 2)
 
     cv2.imshow("Front counter", frame_ctr1)
     cv2.imshow("Rear counter", frame_ctr2)

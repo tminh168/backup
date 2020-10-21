@@ -49,14 +49,8 @@ class FrameSubmit:
         self._run = False
         self.thread.join()
 
-    def q_push(self, frame, current_time, totalCount, direction_str, cam_no):
+    def q_push(self, jpg_as_text, current_time, totalCount, direction_str, cam_no):
 
-        try:
-            # Convert captured image to JPG
-            ret, buffer = cv2.imencode('.jpg', frame)
-            # Convert to base64 encoding and show start of data
-            jpg_as_text = base64.b64encode(buffer)
-            # print(jpg_as_text[:80])
 
             data = {'image': jpg_as_text,
                     'timestamp': current_time,
@@ -67,5 +61,3 @@ class FrameSubmit:
                     'count': totalCount}
 
             self.q.put(data)
-        except:
-            print("Error. Frame missed!")
