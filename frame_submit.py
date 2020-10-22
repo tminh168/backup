@@ -1,6 +1,7 @@
 # import the necessary packages
 from threading import Thread
 import cv2
+import time
 import requests
 import base64
 from queue import Queue
@@ -24,8 +25,10 @@ class FrameSubmit:
 
     def dequeue(self):
         # keep looping infinitely
+        time.sleep(10)
         while self._run:
             if not self.q.empty():
+                t_send = time.time()
                 data = self.q.get()
                 try:
                     r = requests.post(self.url, data=data, verify=False)
@@ -42,6 +45,7 @@ class FrameSubmit:
                     print(
                         r + "Check internet connection. Detection frame on standby!")
                     self.q.put(data)
+                print('Send: {}'.format(time.time() - t_send))
 
         return
 
