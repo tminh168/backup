@@ -27,14 +27,13 @@ labels = load_labels('people_label.txt')
 DNN_1 = model_tpu(model_1, labels)
 DNN_2 = model_tpu(model_2, labels)
 # Get video handle
-fvs1 = CameraVideoStream(cam_78).start()
-fvs2 = CameraVideoStream(cam_80).start()
+fvs = CameraVideoStream(cam_78, cam_80).start()
 
 # initialize API parameters
 FS = FrameSubmit().start()
 
-ct1 = CentroidTracker(maxDisappeared=2, maxDistance=45)
-ct2 = CentroidTracker(maxDisappeared=2, maxDistance=45)
+ct1 = CentroidTracker(maxDisappeared=3, maxDistance=65)
+ct2 = CentroidTracker(maxDisappeared=3, maxDistance=65)
 trackableObjects1 = dict()
 trackableObjects2 = dict()
 totalCount1 = 0
@@ -49,8 +48,7 @@ while True:
 
     direction_str1 = "..."
     direction_str2 = "..."
-    frame1 = fvs1.read()
-    frame2 = fvs2.read()
+    frame1, frame2 = fvs.read()
 
     if frame1 is None or frame2 is None:
         continue
