@@ -13,6 +13,8 @@ class CameraVideoStream:
 
 		# initialize the thread name
 		self.name = name
+		self.thread = Thread(target=self.update, name=self.name, args=())
+		self.thread.daemon = True
 
 		# initialize the variable used to indicate if the thread should
 		# be stopped
@@ -20,8 +22,6 @@ class CameraVideoStream:
 
 	def start(self):
 		# start the thread to read frames from the video stream
-		self.thread = Thread(target=self.update, name=self.name, args=())
-		self.thread.daemon = True
 		self.thread.start()
 		return self
 
@@ -30,7 +30,8 @@ class CameraVideoStream:
 		while True:
 			# if the thread indicator variable is set, stop the thread
 			if self.stopped:
-				#self.stream.release()
+				self.stream1.release()
+				self.stream2.release()
 				return #break
 
 			# otherwise, read the next frame from the stream
@@ -45,3 +46,4 @@ class CameraVideoStream:
 	def stop(self):
 		# indicate that the thread should be stopped
 		self.stopped = True
+		self.thread.join()
