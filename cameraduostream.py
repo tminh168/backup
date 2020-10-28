@@ -2,12 +2,14 @@ from threading import Thread
 #from queue import Queue
 import cv2
 
-class CameraVideoStream:
-	def __init__(self, src=0, name="CamearaVideoStream"):
+class CameraDuoStream:
+	def __init__(self, src1=0, src2=1, name="CamearaDuoStream"):
 		# initialize the video camera stream and read the first frame
 		# from the stream
-		self.stream = cv2.VideoCapture(src)
-		(self.grabbed, self.frame) = self.stream.read()
+		self.stream1 = cv2.VideoCapture(src1)
+		self.stream2 = cv2.VideoCapture(src2)
+		(self.grabbed, self.frame1) = self.stream1.read()
+		(self.grabbed, self.frame2) = self.stream2.read()
 
 		# initialize the thread name
 		self.name = name
@@ -28,15 +30,18 @@ class CameraVideoStream:
 		while True:
 			# if the thread indicator variable is set, stop the thread
 			if self.stopped:
-				self.stream.release()
+				self.stream1.release()
+				self.stream2.release()
 				return #break
 
 			# otherwise, read the next frame from the stream
-			(self.grabbed, self.frame) = self.stream.read()
+			(self.grabbed, self.frame1) = self.stream1.read()
+			(self.grabbed, self.frame2) = self.stream2.read()
+		
 
 	def read(self):
 		# return the frame most recently read
-		return self.frame
+		return self.frame1, self.frame2
 
 	def stop(self):
 		# indicate that the thread should be stopped
