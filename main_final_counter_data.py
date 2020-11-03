@@ -53,53 +53,56 @@ def counter_run(q):
         H = 480
         W = 640
 
-        t_dtc = time.time()
+        #t_dtc = time.time()
         # Detect person and bounding boxes using DNN
         frame1, pedestrian_boxes1 = DNN_1.detect_distance(frame1)
         frame2, pedestrian_boxes2 = DNN_2.detect_distance(frame2)
 
         if len(pedestrian_boxes1) > 0:
+            if n_1 % 4 == 0:
+                current_time = calendar.timegm(time.gmtime())
 
-            current_time = calendar.timegm(time.gmtime())
+                # Convert captured image to JPG
+                ret, buffer = cv2.imencode('.jpg', frame1)
+                # Convert to base64 encoding and show start of data
+                jpg_as_text = base64.b64encode(buffer)
 
-            # Convert captured image to JPG
-            ret, buffer = cv2.imencode('.jpg', frame1)
-            # Convert to base64 encoding and show start of data
-            jpg_as_text = base64.b64encode(buffer)
+                data = {'image': jpg_as_text.decode('utf-8'),
+                        'timestamp': current_time,
+                        'bus': 1,
+                        'shift': 1,
+                        'cam_no': 1,
+                        'direction': "Data",
+                        'count': 0}
 
-            data = {'image': jpg_as_text.decode('utf-8'),
-                    'timestamp': current_time,
-                    'bus': 1,
-                    'shift': 1,
-                    'cam_no': 1,
-                    'direction': "Data",
-                    'count': 0}
-
-            if q.qsize() > 80:
-                q_temp.put(data)
-            else:
-                q.put(data)
+                if q.qsize() > 200:
+                    q_temp.put(data)
+                else:
+                    q.put(data)
+            n_1 += 1
 
         if len(pedestrian_boxes2) > 0:
-            current_time = calendar.timegm(time.gmtime())
+            if n_2 % 4 == 0:
+                current_time = calendar.timegm(time.gmtime())
 
-            # Convert captured image to JPG
-            ret, buffer = cv2.imencode('.jpg', frame2)
-            # Convert to base64 encoding and show start of data
-            jpg_as_text = base64.b64encode(buffer)
+                # Convert captured image to JPG
+                ret, buffer = cv2.imencode('.jpg', frame2)
+                # Convert to base64 encoding and show start of data
+                jpg_as_text = base64.b64encode(buffer)
 
-            data = {'image': jpg_as_text.decode('utf-8'),
-                    'timestamp': current_time,
-                    'bus': 1,
-                    'shift': 1,
-                    'cam_no': 2,
-                    'direction': "Data",
-                    'count': 0}
+                data = {'image': jpg_as_text.decode('utf-8'),
+                        'timestamp': current_time,
+                        'bus': 1,
+                        'shift': 1,
+                        'cam_no': 2,
+                        'direction': "Data",
+                        'count': 0}
 
-            if q.qsize() > 80:
-                q_temp.put(data)
-            else:
-                q.put(data)
+                if q.qsize() > 200:
+                    q_temp.put(data)
+                else:
+                    q.put(data)
+            n_2 += 1
  
         frame_ctr1 = cv2.line(frame1, (ROI, 0), (ROI, H), (0, 255, 255), 2)
         frame_ctr2 = cv2.line(frame2, (ROI, 0), (ROI, H), (0, 255, 255), 2)
@@ -142,7 +145,7 @@ def counter_run(q):
                     'direction': direction_str1,
                     'count': totalCount1}
 
-            if q.qsize() > 80:
+            if q.qsize() > 200:
                 q_temp.put(data)
             else:
                 q.put(data)
@@ -163,26 +166,28 @@ def counter_run(q):
                     'direction': direction_str2,
                     'count': totalCount2}
 
-            if q.qsize() > 80:
+            if q.qsize() > 200:
                 q_temp.put(data)
             else:
                 q.put(data)
 
-        if q.qsize() < 60 and not q_temp.empty():
+        if q.qsize() < 180 and not q_temp.empty():
             data = q_temp.get()
             q.put(data)
 
+        print(q.qsize())
+        print(q_temp.qsize())
         #cv2.imshow("Front counter", frame_ctr1)
         #cv2.imshow("Rear counter", frame_ctr2)
         #cv2.waitKey(1)
 
-        te_dtc = time.time()
-        dtc_rate = te_dtc - t_dtc
-        print('Detection: {}'.format(dtc_rate))
+        # te_dtc = time.time()
+        # dtc_rate = te_dtc - t_dtc
+        # print('Detection: {}'.format(dtc_rate))
 
 if __name__ == "__main__":
 
-    img_queue = Queue(maxsize=128)
+    img_queue = Queue(maxsize=256)
 
     p_submit = Process(target=frameSubmit, args=(img_queue,))
     p_counter = Process(target=counter_run, args=(img_queue,))
