@@ -38,23 +38,36 @@ def frameSubmit(q):
                 print("Check internet connection.")
 
             t_init = time.time()
+            continue
 
         if not q.empty():
-            t_send = time.time()
-            data = q.get()
+            datas = []
+            if q.qsize() >= 3:
+                for i in range(3):
+                    data = q.get()
+                    datas.append(data)
+            else:
+                data = q.get()
+                datas.append(data)
+
             try:
-                r = requests.post(url_img, data=data, verify=False)
+                r = requests.post(url_img, data=datas, verify=False)
 
                 # check API response
                 if r.status_code == 200:
                     print("Success")
+                elif r.status_code == 429:
+                    for data in datas:
+                        q.put(data)
+                    time.sleep(0.5)
+                    print("Too many requests..")
                 else:
-                    q.put(data)
+                    for data in datas:
+                        q.put(data)
 
             except ConnectionError:
                 print("Check internet connection. Detection frame on standby!")
-                q.put(data)
-
-            print('Send: {}'.format(time.time() - t_send))
+                for data in datas:
+                    q.put(data)
 
     return
