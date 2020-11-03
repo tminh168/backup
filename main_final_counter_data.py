@@ -42,6 +42,8 @@ def counter_run(q):
 
         direction_str1 = "..."
         direction_str2 = "..."
+        n_1 = 0
+        n_2 = 0
         frame1 = fvs1.read()
         frame2 = fvs2.read()
 
@@ -57,6 +59,7 @@ def counter_run(q):
         frame2, pedestrian_boxes2 = DNN_2.detect_distance(frame2)
 
         if len(pedestrian_boxes1) > 0:
+
             current_time = calendar.timegm(time.gmtime())
 
             # Convert captured image to JPG
@@ -64,7 +67,7 @@ def counter_run(q):
             # Convert to base64 encoding and show start of data
             jpg_as_text = base64.b64encode(buffer)
 
-            data = {'image': jpg_as_text,
+            data = {'image': jpg_as_text.decode('utf-8'),
                     'timestamp': current_time,
                     'bus': 1,
                     'shift': 1,
@@ -85,7 +88,7 @@ def counter_run(q):
             # Convert to base64 encoding and show start of data
             jpg_as_text = base64.b64encode(buffer)
 
-            data = {'image': jpg_as_text,
+            data = {'image': jpg_as_text.decode('utf-8'),
                     'timestamp': current_time,
                     'bus': 1,
                     'shift': 1,
@@ -131,7 +134,7 @@ def counter_run(q):
             # Convert to base64 encoding and show start of data
             jpg_as_text = base64.b64encode(buffer)
 
-            data = {'image': jpg_as_text,
+            data = {'image': jpg_as_text.decode('utf-8'),
                     'timestamp': current_time,
                     'bus': 1,
                     'shift': 1,
@@ -152,7 +155,7 @@ def counter_run(q):
             # Convert to base64 encoding and show start of data
             jpg_as_text = base64.b64encode(buffer)
 
-            data = {'image': jpg_as_text,
+            data = {'image': jpg_as_text.decode('utf-8'),
                     'timestamp': current_time,
                     'bus': 1,
                     'shift': 1,
@@ -165,7 +168,7 @@ def counter_run(q):
             else:
                 q.put(data)
 
-        if q.size() < 60 and not q_temp.empty():
+        if q.qsize() < 60 and not q_temp.empty():
             data = q_temp.get()
             q.put(data)
 

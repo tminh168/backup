@@ -51,7 +51,7 @@ def frameSubmit(q):
                 datas.append(data)
 
             try:
-                r = requests.post(url_img, data=datas, verify=False)
+                r = requests.post(url_img, json=datas, verify=False)
 
                 # check API response
                 if r.status_code == 200:
