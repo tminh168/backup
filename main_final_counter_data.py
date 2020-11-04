@@ -3,20 +3,31 @@ import os
 import time
 import calendar
 import base64
+import json
+import random
+import string
+import ctypes
 from frame_submit_fcn import frameSubmit
 from datetime import datetime
-from multiprocessing import Process, Queue
+from multiprocessing import Process, Queue, Value
 from cameravideostream import CameraVideoStream
 from pyimagesearch.centroidtracker import CentroidTracker
 from tpu_model import *
 from track_distance import *
 
-def counter_run(q):
+
+def counter_run(q, check_temp):
 
     cam_78 = 'rtsp://192.168.200.78:556/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp?real_stream'
     cam_80 = 'rtsp://192.168.200.80:555/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp?real_stream'
     model_1 = 'detection_1_edgetpu.tflite'
     model_2 = 'detection_2_edgetpu.tflite'
+
+    def get_random(length):
+        letters_and_digits = string.ascii_letters + string.digits
+        result_str = ''.join((random.choice(letters_and_digits)
+                              for i in range(length)))
+        return result_str
 
     # Define a DNN model
     labels = load_labels('people_label.txt')
@@ -26,7 +37,6 @@ def counter_run(q):
     fvs1 = CameraVideoStream(cam_78).start()
     fvs2 = CameraVideoStream(cam_80).start()
 
-    q_temp = Queue(maxsize=256)
     ct1 = CentroidTracker(maxDisappeared=3, maxDistance=55)
     ct2 = CentroidTracker(maxDisappeared=3, maxDistance=55)
     trackableObjects1 = dict()
@@ -39,6 +49,9 @@ def counter_run(q):
 
     # Process each frame, until end of video
     while True:
+
+        if check_temp > 70:
+            time.sleep(5.0)
 
         direction_str1 = "..."
         direction_str2 = "..."
@@ -59,7 +72,7 @@ def counter_run(q):
         frame2, pedestrian_boxes2 = DNN_2.detect_distance(frame2)
 
         if len(pedestrian_boxes1) > 0:
-            if n_1 % 4 == 0:
+            if n_1 % 6 == 0:
                 current_time = calendar.timegm(time.gmtime())
 
                 # Convert captured image to JPG
@@ -76,13 +89,16 @@ def counter_run(q):
                         'count': 0}
 
                 if q.qsize() > 200:
-                    q_temp.put(data)
+                    rand_str = get_random(15)
+                    with open('temp/' + rand_str + '.json', 'w') as f:
+                        json.dump(data, f)
+
                 else:
                     q.put(data)
             n_1 += 1
 
         if len(pedestrian_boxes2) > 0:
-            if n_2 % 4 == 0:
+            if n_2 % 6 == 0:
                 current_time = calendar.timegm(time.gmtime())
 
                 # Convert captured image to JPG
@@ -99,11 +115,14 @@ def counter_run(q):
                         'count': 0}
 
                 if q.qsize() > 200:
-                    q_temp.put(data)
+                    rand_str = get_random(15)
+                    with open('temp/' + rand_str + '.json', 'w') as f:
+                        json.dump(data, f)
+
                 else:
                     q.put(data)
             n_2 += 1
- 
+
         frame_ctr1 = cv2.line(frame1, (ROI, 0), (ROI, H), (0, 255, 255), 2)
         frame_ctr2 = cv2.line(frame2, (ROI, 0), (ROI, H), (0, 255, 255), 2)
         frame_ctr1, countedID1, totalCount1, direction_str1, ct1, trackableObjects1 = append_objs_counter(
@@ -146,7 +165,10 @@ def counter_run(q):
                     'count': totalCount1}
 
             if q.qsize() > 200:
-                q_temp.put(data)
+                rand_str = get_random(15)
+                with open('temp/' + rand_str + '.json', 'w') as f:
+                    json.dump(data, f)
+
             else:
                 q.put(data)
 
@@ -167,30 +189,36 @@ def counter_run(q):
                     'count': totalCount2}
 
             if q.qsize() > 200:
-                q_temp.put(data)
+                rand_str = get_random(15)
+                with open('temp/' + rand_str + '.json', 'w') as f:
+                    json.dump(data, f)
+
             else:
                 q.put(data)
 
-        if q.qsize() < 180 and not q_temp.empty():
-            data = q_temp.get()
-            q.put(data)
+        if q.qsize() < 150:
+            if os.listdir('temp/'):
+                for root, dirs, files in os.walk("temp/", topdown = False):
+                    for name in files:
+                        with open(str(os.path.join(root, name)), 'r') as f:
+                            data = json.load(f)
+                            q.put(data)
+                            break
 
         print(q.qsize())
-        print(q_temp.qsize())
         #cv2.imshow("Front counter", frame_ctr1)
         #cv2.imshow("Rear counter", frame_ctr2)
-        #cv2.waitKey(1)
+        # cv2.waitKey(1)
 
-        # te_dtc = time.time()
-        # dtc_rate = te_dtc - t_dtc
-        # print('Detection: {}'.format(dtc_rate))
 
 if __name__ == "__main__":
 
     img_queue = Queue(maxsize=256)
+    check_temp = Value(ctypes.c_int)
+    check_temp = 0
 
-    p_submit = Process(target=frameSubmit, args=(img_queue,))
-    p_counter = Process(target=counter_run, args=(img_queue,))
+    p_submit = Process(target=frameSubmit, args=(img_queue, check_temp,))
+    p_counter = Process(target=counter_run, args=(img_queue, check_temp,))
     p_submit.start()
     p_counter.start()
     p_counter.join()

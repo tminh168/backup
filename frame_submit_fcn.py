@@ -6,7 +6,7 @@ import requests
 from requests.exceptions import ConnectionError
 
 
-def frameSubmit(q):
+def frameSubmit(q, check_temp):
     # initialize parameters
     url_tmp = 'http://ai-camera.dfm-europe.com/api/v1/admin/public/device-info'
     url_img = 'http://ai-camera.dfm-europe.com/api/v1/admin/public/uplink'
@@ -20,6 +20,7 @@ def frameSubmit(q):
                                    stdout=subprocess.PIPE).communicate()[0]
 
             temp = out.decode("utf-8").split('000')[0]
+            check_temp = temp
             print('temp: {}'.format(temp))
             current_time = calendar.timegm(time.gmtime())
             data = {
