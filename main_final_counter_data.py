@@ -51,9 +51,10 @@ def counter_run(q, check_temp):
     # Process each frame, until end of video
     while True:
 
-        if check_temp.value > 40:
-            time.sleep(5.0)
+        if check_temp.value > 70:
+            check_temp.value = 0
             print('Overheat detected..!')
+            time.sleep(5.0)
 
         direction_str1 = "..."
         direction_str2 = "..."
@@ -74,7 +75,7 @@ def counter_run(q, check_temp):
         frame2, pedestrian_boxes2 = DNN_2.detect_distance(frame2)
 
         if len(pedestrian_boxes1) > 0:
-            if n_1 % 6 == 0:
+            if n_1 % 10 == 0:
                 current_time = calendar.timegm(time.gmtime())
 
                 # Convert captured image to JPG
@@ -100,7 +101,7 @@ def counter_run(q, check_temp):
             n_1 += 1
 
         if len(pedestrian_boxes2) > 0:
-            if n_2 % 6 == 0:
+            if n_2 % 10 == 0:
                 current_time = calendar.timegm(time.gmtime())
 
                 # Convert captured image to JPG
@@ -205,6 +206,7 @@ def counter_run(q, check_temp):
                         with open(str(os.path.join(root, name)), 'r') as f:
                             data = json.load(f)
                             q.put(data)
+                            os.remove(os.path.join(root, name))
                             break
 
         print(q.qsize())
