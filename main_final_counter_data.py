@@ -2,6 +2,7 @@ import cv2
 import os
 import time
 import calendar
+import argparse
 import base64
 import json
 import random
@@ -50,8 +51,9 @@ def counter_run(q, check_temp):
     # Process each frame, until end of video
     while True:
 
-        if check_temp > 70:
+        if check_temp.value > 40:
             time.sleep(5.0)
+            print('Overheat detected..!')
 
         direction_str1 = "..."
         direction_str2 = "..."
@@ -198,7 +200,7 @@ def counter_run(q, check_temp):
 
         if q.qsize() < 150:
             if os.listdir('temp/'):
-                for root, dirs, files in os.walk("temp/", topdown = False):
+                for root, dirs, files in os.walk("temp/", topdown=False):
                     for name in files:
                         with open(str(os.path.join(root, name)), 'r') as f:
                             data = json.load(f)
@@ -213,11 +215,16 @@ def counter_run(q, check_temp):
 
 if __name__ == "__main__":
 
+    ap = argparse.ArgumentParser()
+    ap.add_argument("-stt", "--status", type=int, default=1,
+                    help="pass update status code")
+    args = vars(ap.parse_args())
+
     img_queue = Queue(maxsize=256)
     check_temp = Value(ctypes.c_int)
-    check_temp = 0
+    check_temp.value = 0
 
-    p_submit = Process(target=frameSubmit, args=(img_queue, check_temp,))
+    p_submit = Process(target=frameSubmit, args=(img_queue, check_temp, args["status"]))
     p_counter = Process(target=counter_run, args=(img_queue, check_temp,))
     p_submit.start()
     p_counter.start()
