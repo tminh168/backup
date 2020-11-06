@@ -1,0 +1,6 @@
+distro==1.5.0
+imutils==0.5.3
+packaging==20.4
+pyparsing==2.4.7
+scikit-build==0.11.1
+tflite-runtime==2.1.0.post1
